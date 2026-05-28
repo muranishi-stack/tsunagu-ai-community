@@ -9,3 +9,5 @@ void redirectTo(String url) {
 Map<String, String> readQueryParams() => const {};
 
 void clearQueryParams() {}
+
+String currentOrigin() => '';

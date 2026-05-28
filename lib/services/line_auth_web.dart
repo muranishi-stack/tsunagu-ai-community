@@ -9,6 +9,14 @@ void redirectTo(String url) {
   html.window.location.assign(url);
 }
 
+/// 現在のアプリの origin を返す（例: 'https://5060-xxx.sandbox.novita.ai/'）
+/// LINE Callback URL として LINE Console に登録する値と完全一致させる。
+String currentOrigin() {
+  final origin = html.window.location.origin;
+  // 末尾スラッシュを付ける（LINE Console での登録時と整合させやすい）
+  return origin.endsWith('/') ? origin : '$origin/';
+}
+
 /// 現在の URL のクエリパラメータを取得
 Map<String, String> readQueryParams() {
   final uri = Uri.parse(html.window.location.href);

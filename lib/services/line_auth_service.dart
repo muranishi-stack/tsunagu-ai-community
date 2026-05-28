@@ -43,10 +43,9 @@ class LineAuthService {
   static const String cloudFunctionUrl =
       'https://asia-northeast1-tsunagu-ai-community.cloudfunctions.net/lineAuth';
 
-  /// LINE Developers Console に登録したコールバック URL と完全一致させること
-  /// Web版（Firebase Hosting / 開発時もここ）
-  static const String webRedirectUri =
-      'https://tsunagu-ai-community.firebaseapp.com/__/auth/handler';
+  /// LINE Developers Console に登録するコールバック URL は
+  /// 現在のアプリの origin（例: https://5060-xxx.sandbox.novita.ai/）と一致させる必要がある。
+  /// このメソッドで動的に取得することで、プレビュー URL の変更にも追従できる。
 
   static const String _kStateKey = 'line_oauth_state';
 
@@ -98,15 +97,15 @@ class LineAuthService {
   }
 
   /// 現在のリダイレクトURIを動的に決定
-  /// Web: window.location.origin + '/' で開発/本番どちらも対応可能
-  ///   ただし LINE Console に登録した URL と完全一致が必要なので、ここでは固定値を返す
+  /// Web: window.location.origin/ を使い、プレビュー URL の変更に追従
+  /// 例: https://5060-xxx.sandbox.novita.ai/
+  /// この値を LINE Console の「Callback URL」に **完全一致** で登録する必要がある。
   String _currentRedirectUri() {
     if (kIsWeb) {
-      // LINE Console 登録値と一致させるため固定
-      return webRedirectUri;
+      return web_helper.currentOrigin();
     }
     // Mobile 用は後で Deep Link を設定（今は Web 優先）
-    return webRedirectUri;
+    return 'https://5060-iy1vrfuqc7ohomd9wcegs-ad490db5.sandbox.novita.ai/';
   }
 
   /// アプリ起動時に URL に ?code=... があれば交換処理を実行
@@ -137,7 +136,10 @@ class LineAuthService {
 
     isProcessing.value = true;
     try {
-      await _exchangeCodeAndSignIn(code: code, redirectUri: webRedirectUri);
+      await _exchangeCodeAndSignIn(
+        code: code,
+        redirectUri: _currentRedirectUri(),
+      );
       return true;
     } finally {
       isProcessing.value = false;
