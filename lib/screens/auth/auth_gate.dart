@@ -91,21 +91,26 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ロゴ (musubi結び目をシンプルに表現)
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text(
-                  'T',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
+            // TSUNAGU musubi-knot ロゴ
+            Image.asset(
+              'assets/icons/tsunagu_icon.png',
+              width: 120,
+              height: 120,
+              errorBuilder: (_, __, ___) => Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'T',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),

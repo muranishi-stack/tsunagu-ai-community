@@ -294,20 +294,20 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: AppTheme.white,
       appBar: _buildAppBar(),
       body: SafeArea(
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(child: _buildCategoryTabs()),
-                Padding(
-                  padding: const EdgeInsets.only(right: 16, left: 4),
-                  child: const BoostButton(),
-                ),
-              ],
+            // BOOST ボタンを独立した行に分離（カテゴリタブとの重なり防止）
+            Container(
+              width: double.infinity,
+              color: Theme.of(context).scaffoldBackgroundColor,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              alignment: Alignment.centerRight,
+              child: const BoostButton(),
             ),
+            // カテゴリタブは独立した行で全幅をスクロール
+            _buildCategoryTabs(),
             if (_prefs.hasActiveLocationFilter) _buildFilterBanner(),
             Expanded(
               child: Padding(
@@ -464,10 +464,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     final categories = [null, ...ConnectionCategory.values];
     return Container(
       height: 48,
-      decoration: const BoxDecoration(
-        color: AppTheme.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
-          bottom: BorderSide(color: AppTheme.paleGrey, width: 0.5),
+          bottom: BorderSide(
+              color: Theme.of(context).dividerColor, width: 0.5),
         ),
       ),
       child: ListView.builder(
@@ -524,7 +525,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   PreferredSizeWidget _buildAppBar() {
     final hasFilter = _prefs.hasActiveLocationFilter;
     return AppBar(
-      backgroundColor: AppTheme.white,
       elevation: 0,
       title: const TsunaguBrand(fontSize: 16, iconSize: 24),
       leading: Stack(

@@ -4,6 +4,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
+import 'services/theme_service.dart';
 import 'screens/auth/auth_gate.dart';
 import 'admin/screens/login_screen.dart';
 import 'admin/screens/dashboard_screen.dart';
@@ -38,6 +39,9 @@ Future<void> main() async {
     }
   }
 
+  // Initialize ThemeService (load saved theme mode)
+  await ThemeService().init();
+
   runApp(const TsunaguApp());
 }
 
@@ -46,12 +50,24 @@ class TsunaguApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TSUNAGU',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const AuthGate(),
-      routes: {
+    final themeService = ThemeService();
+    return AnimatedBuilder(
+      animation: themeService,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'TSUNAGU',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeService.themeMode,
+          home: const AuthGate(),
+          routes: _adminRoutes,
+        );
+      },
+    );
+  }
+
+  Map<String, WidgetBuilder> get _adminRoutes => {
         '/admin/login': (_) => const AdminLoginScreen(),
         '/admin/dashboard': (_) => const AdminDashboardScreen(),
         '/admin/users': (_) => const AdminUsersScreen(),
@@ -63,7 +79,5 @@ class TsunaguApp extends StatelessWidget {
         '/admin/announcements': (_) => const AdminAnnouncementsScreen(),
         '/admin/data-sources': (_) => const AdminDataSourcesScreen(),
         '/admin/settings': (_) => const AdminSettingsScreen(),
-      },
-    );
-  }
+      };
 }

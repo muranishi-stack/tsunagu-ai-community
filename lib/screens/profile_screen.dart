@@ -7,7 +7,10 @@ import '../models/connection_category.dart';
 import '../models/user_profile.dart';
 import '../services/user_preferences.dart';
 import '../services/user_service.dart';
+import '../services/theme_service.dart';
 import 'subscription_screen.dart';
+import 'profile_edit_screen.dart';
+import 'photo_manager_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,11 +29,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _prefs.addListener(_onPrefsChanged);
+    ThemeService().addListener(_onThemeChanged);
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _prefs.removeListener(_onPrefsChanged);
+    ThemeService().removeListener(_onThemeChanged);
     super.dispose();
   }
 
@@ -73,20 +82,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ─── Theme picker ────────────────────────────────────────────────
+  IconData _themeIcon() {
+    switch (ThemeService().themeMode) {
+      case ThemeMode.light:
+        return Icons.light_mode_outlined;
+      case ThemeMode.dark:
+        return Icons.dark_mode_outlined;
+      case ThemeMode.system:
+        return Icons.brightness_auto_outlined;
+    }
+  }
+
+  void _showThemePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('テーマを選択',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _themeOption(ctx, ThemeMode.light, Icons.light_mode_outlined,
+                'ライトモード', '明るいテーマ'),
+            _themeOption(ctx, ThemeMode.dark, Icons.dark_mode_outlined,
+                'ダークモード', '目に優しい暗いテーマ'),
+            _themeOption(ctx, ThemeMode.system,
+                Icons.brightness_auto_outlined, 'システム連動', '端末の設定に従う'),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    ).then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Widget _themeOption(BuildContext ctx, ThemeMode mode, IconData icon,
+      String title, String desc) {
+    final service = ThemeService();
+    final selected = service.themeMode == mode;
+    return ListTile(
+      leading: Icon(icon,
+          color: selected ? AppTheme.vermillion : null),
+      title: Text(title,
+          style: TextStyle(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              color: selected ? AppTheme.vermillion : null)),
+      subtitle: Text(desc, style: const TextStyle(fontSize: 12)),
+      trailing: selected
+          ? const Icon(Icons.check, color: AppTheme.vermillion)
+          : null,
+      onTap: () async {
+        await service.setThemeMode(mode);
+        if (ctx.mounted) Navigator.pop(ctx);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.white,
       appBar: AppBar(
-        backgroundColor: AppTheme.white,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'PROFILE',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 3.0,
-            color: AppTheme.black,
+            color: Theme.of(context).textTheme.titleLarge?.color,
           ),
         ),
         actions: [
@@ -115,7 +201,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildAIStats(),
               const SizedBox(height: 32),
               _buildMenuSection('ACCOUNT', [
-                _MenuItem(Icons.person_outline, 'プロフィール編集', onTap: () {}),
+                _MenuItem(Icons.person_outline, 'プロフィール編集',
+                    onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProfileEditScreen()),
+                        )),
                 _MenuItem(Icons.category_outlined, 'カテゴリ・目的を変更',
                     onTap: () => CategoryEditSheet.show(context),
                     isAccent: true),
@@ -126,7 +217,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               builder: (_) => const SubscriptionScreen()),
                         ),
                     isAccent: true),
-                _MenuItem(Icons.photo_camera_outlined, '写真を管理', onTap: () {}),
+                _MenuItem(Icons.photo_camera_outlined, '写真を管理',
+                    onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const PhotoManagerScreen()),
+                        )),
                 _MenuItem(Icons.tune, 'マッチング設定', onTap: () {}),
               ]),
               _buildMenuSection('AI FEATURES', [
@@ -138,6 +234,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () {}),
               ]),
               _buildMenuSection('PREFERENCES', [
+                _MenuItem(
+                  _themeIcon(),
+                  'テーマ (${ThemeService().currentLabel})',
+                  onTap: () => _showThemePicker(context),
+                ),
                 _MenuItem(Icons.notifications_none, '通知設定', onTap: () {}),
                 _MenuItem(Icons.lock_outline, 'プライバシー', onTap: () {}),
                 _MenuItem(Icons.help_outline, 'ヘルプ・サポート', onTap: () {}),

@@ -104,22 +104,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ロゴ
+                    // TSUNAGU musubi-knot ロゴ
                     Center(
-                      child: Container(
-                        width: 84,
-                        height: 84,
-                        decoration: const BoxDecoration(
-                          color: _primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'T',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 40,
-                              fontWeight: FontWeight.w900,
+                      child: Image.asset(
+                        'assets/icons/tsunagu_icon.png',
+                        width: 96,
+                        height: 96,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 84,
+                          height: 84,
+                          decoration: const BoxDecoration(
+                            color: _primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'T',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 40,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                         ),

@@ -109,4 +109,108 @@ class AppTheme {
       ),
     );
   }
+
+  // ─── Dark Mode Colors ────────────────────────────────────────
+  static const Color darkBg = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkSurfaceVariant = Color(0xFF2A2A2A);
+  static const Color darkBorder = Color(0xFF3A3A3A);
+  static const Color darkText = Color(0xFFEEEEEE);
+  static const Color darkTextSecondary = Color(0xFFB5B5B5);
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: darkBg,
+      primaryColor: vermillion,
+      colorScheme: const ColorScheme.dark(
+        primary: vermillion,
+        secondary: vermillion,
+        surface: darkSurface,
+        onPrimary: white,
+        onSecondary: white,
+        onSurface: darkText,
+        error: Color(0xFFFF6B6B),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkBg,
+        foregroundColor: darkText,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          color: darkText,
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 3.0,
+        ),
+      ),
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w300,
+          letterSpacing: 1.0,
+          color: darkText,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.8,
+          color: darkText,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+          color: darkText,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          color: darkText,
+          height: 1.6,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: darkTextSecondary,
+          height: 1.5,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          color: darkTextSecondary,
+          letterSpacing: 0.3,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.5,
+          color: darkText,
+        ),
+      ),
+      iconTheme: const IconThemeData(
+        color: darkText,
+        size: 24,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: darkSurface,
+        selectedItemColor: vermillion,
+        unselectedItemColor: darkTextSecondary,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: darkBorder,
+        thickness: 0.5,
+        space: 1,
+      ),
+      cardTheme: const CardThemeData(
+        color: darkSurface,
+        elevation: 0,
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: darkSurface,
+      ),
+    );
+  }
 }
