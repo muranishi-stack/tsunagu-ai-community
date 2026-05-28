@@ -28,17 +28,17 @@ class _MatchesScreenState extends State<MatchesScreen> {
       );
     }
     return Scaffold(
-      backgroundColor: AppTheme.white,
+      backgroundColor: AppTheme.surface(context),
       appBar: AppBar(
-        backgroundColor: AppTheme.white,
+        backgroundColor: AppTheme.surface(context),
         elevation: 0,
-        title: const Text(
+        title: Text(
           'CONNECTIONS',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 3.0,
-            color: AppTheme.black,
+            color: AppTheme.textPrimary(context),
           ),
         ),
       ),
@@ -90,7 +90,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.handshake_outlined,
-              size: 64, color: AppTheme.lightGrey),
+              size: 64, color: AppTheme.textTertiary(context)),
           const SizedBox(height: 16),
           const Text(
             'まだマッチがありません',
@@ -101,13 +101,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: 48),
             child: Text(
               '気になる相手にLikeを送って、\n相互Likeでマッチを獲得しよう！',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.lightGrey,
+                color: AppTheme.textTertiary(context),
                 fontSize: 12,
                 height: 1.5,
               ),
@@ -143,10 +143,10 @@ class _MatchesList extends StatelessWidget {
               children: [
                 Container(height: 1, width: 16, color: AppTheme.gold),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'NEW MATCHES',
                   style: TextStyle(
-                    color: AppTheme.black,
+                    color: AppTheme.textPrimary(context),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 3.0,
@@ -181,7 +181,7 @@ class _MatchesList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          Container(height: 0.5, color: AppTheme.paleGrey),
+          Container(height: 0.5, color: AppTheme.surfaceVariant(context)),
         ],
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
@@ -189,10 +189,10 @@ class _MatchesList extends StatelessWidget {
             children: [
               Container(height: 1, width: 16, color: AppTheme.gold),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'MESSAGES',
                 style: TextStyle(
-                  color: AppTheme.black,
+                  color: AppTheme.textPrimary(context),
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 3.0,
@@ -242,7 +242,7 @@ class _MatchAvatar extends StatelessWidget {
       future: UserService().getProfile(peer),
       builder: (context, snap) {
         if (!snap.hasData) {
-          return _placeholderAvatar();
+          return _placeholderAvatar(context);
         }
         final user = snap.data!;
         return GestureDetector(
@@ -265,9 +265,9 @@ class _MatchAvatar extends StatelessWidget {
                               user.photos.first,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) =>
-                                  Container(color: AppTheme.paleGrey),
+                                  Container(color: AppTheme.surfaceVariant(context)),
                             )
-                          : Container(color: AppTheme.paleGrey),
+                          : Container(color: AppTheme.surfaceVariant(context)),
                     ),
                   ),
                   if (_hasUnread(match, currentUid))
@@ -281,7 +281,7 @@ class _MatchAvatar extends StatelessWidget {
                           color: AppTheme.gold,
                           shape: BoxShape.circle,
                           border:
-                              Border.all(color: AppTheme.white, width: 2),
+                              Border.all(color: AppTheme.surface(context), width: 2),
                         ),
                       ),
                     ),
@@ -290,8 +290,8 @@ class _MatchAvatar extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 user.name,
-                style: const TextStyle(
-                  color: AppTheme.black,
+                style: TextStyle(
+                  color: AppTheme.textPrimary(context),
                   fontSize: 12,
                   letterSpacing: 0.5,
                 ),
@@ -303,20 +303,20 @@ class _MatchAvatar extends StatelessWidget {
     );
   }
 
-  Widget _placeholderAvatar() {
+  Widget _placeholderAvatar(BuildContext context) {
     return Column(
       children: [
         Container(
           width: 76,
           height: 76,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppTheme.paleGrey,
+            color: AppTheme.surfaceVariant(context),
           ),
         ),
         const SizedBox(height: 8),
-        const Text('...',
-            style: TextStyle(color: AppTheme.lightGrey, fontSize: 12)),
+        Text('...',
+            style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
       ],
     );
   }
@@ -342,15 +342,16 @@ class _MatchTile extends StatelessWidget {
                 Container(
                   width: 56,
                   height: 56,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppTheme.paleGrey,
+                    color: AppTheme.surfaceVariant(context),
                   ),
                 ),
                 const SizedBox(width: 16),
-                const Expanded(
+                Expanded(
                   child: Text('...',
-                      style: TextStyle(color: AppTheme.lightGrey)),
+                      style: TextStyle(
+                          color: AppTheme.textTertiary(context))),
                 ),
               ],
             ),
@@ -376,7 +377,7 @@ class _MatchTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border:
-                        Border.all(color: AppTheme.paleGrey, width: 0.5),
+                        Border.all(color: AppTheme.surfaceVariant(context), width: 0.5),
                   ),
                   padding: const EdgeInsets.all(2),
                   child: ClipOval(
@@ -385,9 +386,9 @@ class _MatchTile extends StatelessWidget {
                             user.photos.first,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
-                                Container(color: AppTheme.paleGrey),
+                                Container(color: AppTheme.surfaceVariant(context)),
                           )
-                        : Container(color: AppTheme.paleGrey),
+                        : Container(color: AppTheme.surfaceVariant(context)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -400,7 +401,7 @@ class _MatchTile extends StatelessWidget {
                           Text(
                             user.name,
                             style: TextStyle(
-                              color: AppTheme.black,
+                              color: AppTheme.textPrimary(context),
                               fontSize: 15,
                               fontWeight: hasUnread
                                   ? FontWeight.w500

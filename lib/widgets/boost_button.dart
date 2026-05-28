@@ -8,7 +8,9 @@ import 'payment_sheet.dart';
 /// Discover画面のアクションボタン横に表示する、
 /// 「アプローチ強化（ブースト）」ボタン
 class BoostButton extends StatefulWidget {
-  const BoostButton({super.key});
+  /// コンパクト表示（AppBar内に収まるサイズ）
+  final bool compact;
+  const BoostButton({super.key, this.compact = false});
 
   @override
   State<BoostButton> createState() => _BoostButtonState();
@@ -66,6 +68,47 @@ class _BoostButtonState extends State<BoostButton> {
   }
 
   Widget _buildPurchaseButton() {
+    if (widget.compact) {
+      return GestureDetector(
+        onTap: _purchaseBoost,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.vermillion,
+                AppTheme.vermillion.withValues(alpha: 0.85),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.vermillion.withValues(alpha: 0.3),
+                blurRadius: 6,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.rocket_launch, size: 12, color: Colors.white),
+              SizedBox(width: 5),
+              Text(
+                'BOOST',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return GestureDetector(
       onTap: _purchaseBoost,
       child: Container(
@@ -117,6 +160,40 @@ class _BoostButtonState extends State<BoostButton> {
   }
 
   Widget _buildActiveBoost(ActiveBoost boost) {
+    if (widget.compact) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.vermillion.withValues(alpha: 0.12),
+          border: Border.all(color: AppTheme.vermillion, width: 0.8),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: AppTheme.vermillion,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              boost.remainingLabel,
+              style: const TextStyle(
+                color: AppTheme.vermillion,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(

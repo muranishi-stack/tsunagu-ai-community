@@ -298,15 +298,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // BOOST ボタンを独立した行に分離（カテゴリタブとの重なり防止）
-            Container(
-              width: double.infinity,
-              color: Theme.of(context).scaffoldBackgroundColor,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              alignment: Alignment.centerRight,
-              child: const BoostButton(),
-            ),
-            // カテゴリタブは独立した行で全幅をスクロール
+            // カテゴリタブのみ独立した行で全幅をスクロール
+            // BOOSTボタンはAppBarのactionsに移動して1行レイアウトを実現
             _buildCategoryTabs(),
             if (_prefs.hasActiveLocationFilter) _buildFilterBanner(),
             Expanded(
@@ -393,13 +386,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           Icon(
             _selectedCategory?.icon ?? Icons.search,
             size: 48,
-            color: AppTheme.lightGrey,
+            color: AppTheme.textTertiary(context),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '該当する人が見つかりません',
             style: TextStyle(
-              color: AppTheme.grey,
+              color: AppTheme.textSecondary(context),
               fontSize: 14,
               letterSpacing: 1.0,
             ),
@@ -489,7 +482,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
               decoration: BoxDecoration(
                 color: isSelected ? AppTheme.vermillion : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? AppTheme.vermillion : AppTheme.paleGrey,
+                  color: isSelected
+                      ? AppTheme.vermillion
+                      : AppTheme.border(context),
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(20),
@@ -500,13 +495,17 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                   Icon(
                     icon,
                     size: 14,
-                    color: isSelected ? Colors.white : AppTheme.darkGrey,
+                    color: isSelected
+                        ? Colors.white
+                        : AppTheme.textSecondary(context),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     label,
                     style: TextStyle(
-                      color: isSelected ? Colors.white : AppTheme.darkGrey,
+                      color: isSelected
+                          ? Colors.white
+                          : AppTheme.textSecondary(context),
                       fontSize: 12,
                       fontWeight:
                           isSelected ? FontWeight.w600 : FontWeight.w500,
@@ -545,6 +544,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         ],
       ),
       actions: [
+        // BOOSTボタンをAppBar内に配置（コンパクト版でカテゴリタブと別行に）
+        const Padding(
+          padding: EdgeInsets.only(right: 4),
+          child: BoostButton(compact: true),
+        ),
         IconButton(
           icon: const Icon(Icons.notifications_none_outlined, size: 22),
           onPressed: () {},
@@ -589,11 +593,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         opacity: opacity,
         child: Container(
           decoration: BoxDecoration(
-            color: AppTheme.white,
+            color: AppTheme.surface(context),
             borderRadius: BorderRadius.circular(2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withValues(
+                    alpha: AppTheme.isDark(context) ? 0.4 : 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
@@ -611,7 +616,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
                     return Container(
-                      color: AppTheme.paleGrey,
+                      color: AppTheme.surfaceVariant(context),
                       child: const Center(
                         child: SizedBox(
                           width: 24,
@@ -625,9 +630,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                     );
                   },
                   errorBuilder: (context, error, stack) => Container(
-                    color: AppTheme.paleGrey,
-                    child: const Icon(Icons.person_outline,
-                        size: 80, color: AppTheme.lightGrey),
+                    color: AppTheme.surfaceVariant(context),
+                    child: Icon(Icons.person_outline,
+                        size: 80, color: AppTheme.textTertiary(context)),
                   ),
                 ),
                 // Gradient overlay

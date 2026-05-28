@@ -28,9 +28,9 @@ class _MainScreenState extends State<MainScreen> {
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: AppTheme.white,
+          color: AppTheme.surface(context),
           border: Border(
-            top: BorderSide(color: AppTheme.paleGrey, width: 0.5),
+            top: BorderSide(color: AppTheme.border(context), width: 0.5),
           ),
         ),
         child: SafeArea(
@@ -52,6 +52,9 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
     final isActive = _currentIndex == index;
+    final activeColor =
+        index == 2 ? AppTheme.gold : AppTheme.textPrimary(context);
+    final inactiveColor = AppTheme.textTertiary(context);
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _currentIndex = index),
@@ -61,9 +64,7 @@ class _MainScreenState extends State<MainScreen> {
             Icon(
               isActive ? activeIcon : icon,
               size: 20,
-              color: isActive
-                  ? (index == 2 ? AppTheme.gold : AppTheme.black)
-                  : AppTheme.lightGrey,
+              color: isActive ? activeColor : inactiveColor,
             ),
             const SizedBox(height: 4),
             Text(
@@ -72,9 +73,7 @@ class _MainScreenState extends State<MainScreen> {
                 fontSize: 9,
                 letterSpacing: 1.5,
                 fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-                color: isActive
-                    ? (index == 2 ? AppTheme.gold : AppTheme.black)
-                    : AppTheme.lightGrey,
+                color: isActive ? activeColor : inactiveColor,
               ),
             ),
             if (isActive)
@@ -82,7 +81,7 @@ class _MainScreenState extends State<MainScreen> {
                 margin: const EdgeInsets.only(top: 4),
                 width: 12,
                 height: 1,
-                color: index == 2 ? AppTheme.gold : AppTheme.black,
+                color: activeColor,
               )
             else
               const SizedBox(height: 5),

@@ -76,7 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.white,
+      backgroundColor: AppTheme.surface(context),
       appBar: _buildAppBar(),
       body: SafeArea(
         child: Column(
@@ -142,7 +142,7 @@ class _ChatScreenState extends State<ChatScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.chat_bubble_outline,
-              size: 48, color: AppTheme.lightGrey),
+              size: 48, color: AppTheme.textTertiary(context)),
           const SizedBox(height: 16),
           Text(
             '${widget.match.user.name}さんとマッチしました！',
@@ -153,9 +153,9 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             '最初のメッセージを送ってみましょう',
-            style: TextStyle(color: AppTheme.lightGrey, fontSize: 11),
+            style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 11),
           ),
         ],
       ),
@@ -164,11 +164,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: AppTheme.white,
+      backgroundColor: AppTheme.surface(context),
       elevation: 0,
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(0.5),
-        child: Container(height: 0.5, color: AppTheme.paleGrey),
+        child: Container(height: 0.5, color: AppTheme.surfaceVariant(context)),
       ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -187,9 +187,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       widget.match.user.photos.first,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
-                          Container(color: AppTheme.paleGrey),
+                          Container(color: AppTheme.surfaceVariant(context)),
                     )
-                  : Container(color: AppTheme.paleGrey),
+                  : Container(color: AppTheme.surfaceVariant(context)),
             ),
           ),
           const SizedBox(width: 10),
@@ -199,8 +199,8 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Text(
                 widget.match.user.name,
-                style: const TextStyle(
-                  color: AppTheme.black,
+                style: TextStyle(
+                  color: AppTheme.textPrimary(context),
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 1.0,
@@ -243,14 +243,21 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: isMe ? AppTheme.black : AppTheme.offWhite,
+                color: isMe
+                    ? AppTheme.vermillion
+                    : AppTheme.surfaceVariant(context),
                 borderRadius: BorderRadius.circular(2),
-                border: isMe ? null : Border.all(color: AppTheme.paleGrey, width: 0.5),
+                border: isMe
+                    ? null
+                    : Border.all(
+                        color: AppTheme.border(context),
+                        width: 0.5,
+                      ),
               ),
               child: Text(
                 message.text,
                 style: TextStyle(
-                  color: isMe ? Colors.white : AppTheme.charcoal,
+                  color: isMe ? Colors.white : AppTheme.textPrimary(context),
                   fontSize: 13,
                   height: 1.5,
                 ),
@@ -275,8 +282,8 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       constraints: const BoxConstraints(maxHeight: 320),
       decoration: BoxDecoration(
-        color: AppTheme.offWhite,
-        border: Border(top: BorderSide(color: AppTheme.paleGrey, width: 0.5)),
+        color: AppTheme.surfaceVariant(context),
+        border: Border(top: BorderSide(color: AppTheme.surfaceVariant(context), width: 0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -356,7 +363,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: AppTheme.white,
-                                border: Border.all(color: AppTheme.paleGrey),
+                                border: Border.all(color: AppTheme.surfaceVariant(context)),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                               child: Text(
@@ -385,7 +392,7 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       decoration: BoxDecoration(
         color: AppTheme.white,
-        border: Border(top: BorderSide(color: AppTheme.paleGrey, width: 0.5)),
+        border: Border(top: BorderSide(color: AppTheme.surfaceVariant(context), width: 0.5)),
       ),
       child: Row(
         children: [
@@ -409,21 +416,21 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: AppTheme.offWhite,
+                color: AppTheme.surfaceVariant(context),
                 borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: AppTheme.paleGrey, width: 0.5),
+                border: Border.all(color: AppTheme.surfaceVariant(context), width: 0.5),
               ),
               child: TextField(
                 controller: _controller,
                 style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'メッセージ...',
                   hintStyle: TextStyle(
-                    color: AppTheme.lightGrey,
+                    color: AppTheme.textTertiary(context),
                     fontSize: 13,
                   ),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
                   border: InputBorder.none,
                 ),
                 onSubmitted: _sendMessage,

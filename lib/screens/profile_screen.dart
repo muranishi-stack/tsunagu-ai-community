@@ -251,26 +251,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: OutlinedButton(
                     onPressed: _signingOut ? null : _confirmLogout,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.paleGrey),
+                      side: BorderSide(color: AppTheme.border(context)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     child: _signingOut
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation(AppTheme.grey),
+                              valueColor: AlwaysStoppedAnimation(
+                                  AppTheme.textSecondary(context)),
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'LOG OUT',
                             style: TextStyle(
-                              color: AppTheme.grey,
+                              color: AppTheme.textSecondary(context),
                               letterSpacing: 3.0,
                               fontSize: 12,
                             ),
@@ -333,13 +333,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       photoUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
-                        color: AppTheme.offWhite,
+                        color: AppTheme.surfaceVariant(context),
                         alignment: Alignment.center,
                         child: const TsunaguLogo(size: 48),
                       ),
                     )
                   : Container(
-                      color: AppTheme.offWhite,
+                      color: AppTheme.surfaceVariant(context),
                       alignment: Alignment.center,
                       child: const TsunaguLogo(size: 48),
                     ),
@@ -348,11 +348,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           Text(
             age != null ? '$name · $age' : name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w300,
               letterSpacing: 2.0,
-              color: AppTheme.black,
+              color: AppTheme.textPrimary(context),
             ),
           ),
           const SizedBox(height: 4),
@@ -362,26 +362,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             occupation.isNotEmpty
                 ? '$occupation · $prefecture'
                 : prefecture,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppTheme.grey,
+              color: AppTheme.textSecondary(context),
               letterSpacing: 1.5,
             ),
           ),
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: () {},
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileEditScreen()),
+            ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppTheme.black, width: 0.5),
+              side: BorderSide(
+                  color: AppTheme.textPrimary(context), width: 0.5),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            child: const Text(
+            child: Text(
               'EDIT PROFILE',
               style: TextStyle(
-                color: AppTheme.black,
+                color: AppTheme.textPrimary(context),
                 fontSize: 11,
                 letterSpacing: 2.5,
               ),
@@ -397,7 +401,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.offWhite,
+        color: AppTheme.surfaceVariant(context),
         border: Border.all(color: AppTheme.gold.withValues(alpha: 0.3), width: 0.5),
       ),
       child: Column(
@@ -453,12 +457,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Container(height: 0.5, color: AppTheme.paleGrey),
+          Container(height: 0.5, color: AppTheme.border(context)),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'プロフィールを充実させると、より多様な繋がりに出会えます。',
             style: TextStyle(
-              color: AppTheme.charcoal,
+              color: AppTheme.textSecondary(context),
               fontSize: 12,
               height: 1.6,
             ),
@@ -473,8 +477,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.grey,
+          style: TextStyle(
+            color: AppTheme.textTertiary(context),
             fontSize: 10,
             letterSpacing: 1.5,
           ),
@@ -482,8 +486,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(width: 8),
         Text(
           value,
-          style: const TextStyle(
-            color: AppTheme.black,
+          style: TextStyle(
+            color: AppTheme.textPrimary(context),
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
@@ -505,8 +509,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: 12),
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppTheme.black,
+                style: TextStyle(
+                  color: AppTheme.textPrimary(context),
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 3.0,
@@ -526,7 +530,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         size: 18,
                         color: item.isAccent
                             ? AppTheme.vermillion
-                            : AppTheme.darkGrey,
+                            : AppTheme.textSecondary(context),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -535,7 +539,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(
                             color: item.isAccent
                                 ? AppTheme.vermillion
-                                : AppTheme.charcoal,
+                                : AppTheme.textPrimary(context),
                             fontSize: 13,
                             letterSpacing: 0.5,
                             fontWeight: item.isAccent
@@ -544,8 +548,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios,
-                          size: 12, color: AppTheme.lightGrey),
+                      Icon(Icons.arrow_forward_ios,
+                          size: 12, color: AppTheme.textTertiary(context)),
                     ],
                   ),
                 ),
@@ -561,8 +565,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.white,
-        border: Border.all(color: AppTheme.paleGrey, width: 0.5),
+        color: AppTheme.surface(context),
+        border: Border.all(color: AppTheme.border(context), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

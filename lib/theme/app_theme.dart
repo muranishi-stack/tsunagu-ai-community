@@ -111,12 +111,58 @@ class AppTheme {
   }
 
   // ─── Dark Mode Colors ────────────────────────────────────────
-  static const Color darkBg = Color(0xFF121212);
-  static const Color darkSurface = Color(0xFF1E1E1E);
-  static const Color darkSurfaceVariant = Color(0xFF2A2A2A);
-  static const Color darkBorder = Color(0xFF3A3A3A);
-  static const Color darkText = Color(0xFFEEEEEE);
-  static const Color darkTextSecondary = Color(0xFFB5B5B5);
+  static const Color darkBg = Color(0xFF0F0F0F);
+  static const Color darkSurface = Color(0xFF1A1A1A);
+  static const Color darkSurfaceVariant = Color(0xFF252525);
+  static const Color darkBorder = Color(0xFF383838);
+  static const Color darkText = Color(0xFFF5F5F5);
+  static const Color darkTextSecondary = Color(0xFFCBCBCB);
+  static const Color darkTextTertiary = Color(0xFF8F8F8F);
+
+  // ─── Adaptive color helpers (use these in widgets) ───────────
+  /// 背景色（ライト: white、ダーク: darkBg）
+  static Color bg(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? darkBg : white;
+
+  /// 表面色（カード等、ライト: white、ダーク: darkSurface）
+  static Color surface(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? darkSurface : white;
+
+  /// バリアント表面色（ライト: offWhite、ダーク: darkSurfaceVariant）
+  static Color surfaceVariant(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkSurfaceVariant
+          : offWhite;
+
+  /// 区切り線/枠線色
+  static Color border(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? darkBorder : paleGrey;
+
+  /// メインテキスト色（ライト: black、ダーク: darkText）
+  static Color textPrimary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? darkText : black;
+
+  /// セカンダリーテキスト色
+  static Color textSecondary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkTextSecondary
+          : darkGrey;
+
+  /// 3次テキスト色（補足情報）
+  static Color textTertiary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkTextTertiary
+          : grey;
+
+  /// ヴァーミリオン淡色（ハイライト背景）
+  static Color vermillionTint(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0x40E63946) // 25% opacity vermillion
+          : vermillionPale;
+
+  /// ダークモード判定
+  static bool isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
 
   static ThemeData get darkTheme {
     return ThemeData(
