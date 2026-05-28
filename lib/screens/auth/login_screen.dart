@@ -4,6 +4,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/line_auth_service.dart';
 import '../../services/user_service.dart';
 import 'signup_screen.dart';
 
@@ -74,13 +75,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showLineComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('LINEログインは近日公開予定です'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _loginWithLine() async {
+    setState(() {
+      _loading = true;
+      _errorMsg = null;
+    });
+    try {
+      // LINE 認証画面に遷移（Web は同タブリダイレクト、Mobile は外部ブラウザ）
+      await LineAuthService.instance.startLogin();
+      // この時点で Web の場合は別ページに遷移しているのでここから先は実行されない
+      // 戻り処理は main.dart の handleRedirectIfPresent() が担当
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMsg = 'LINEログインに失敗しました: $e';
+        });
+      }
+    }
   }
 
   Future<void> _forgotPassword() async {
@@ -348,7 +360,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       height: 50,
                       child: ElevatedButton.icon(
-                        onPressed: _loading ? null : _showLineComingSoon,
+                        onPressed: _loading ? null : _loginWithLine,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF06C755),
                           foregroundColor: Colors.white,
@@ -359,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         icon: const Icon(Icons.chat_bubble, size: 20),
                         label: const Text(
-                          'LINEでログイン（準備中）',
+                          'LINEでログイン',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,

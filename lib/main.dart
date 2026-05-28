@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'services/theme_service.dart';
 import 'services/super_like_service.dart';
+import 'services/line_auth_service.dart';
 import 'screens/auth/auth_gate.dart';
 import 'admin/screens/login_screen.dart';
 import 'admin/screens/dashboard_screen.dart';
@@ -45,6 +46,22 @@ Future<void> main() async {
 
   // Initialize SuperLikeService (load monthly quota)
   await SuperLikeService().initialize();
+
+  // Handle LINE OAuth redirect callback if present in URL
+  // （?code=...&state=... が付いていれば Cloud Function に投げて Firebase Auth にサインイン）
+  if (kIsWeb) {
+    try {
+      final handled = await LineAuthService.instance.handleRedirectIfPresent();
+      if (handled && kDebugMode) {
+        debugPrint('✅ LINE login redirect handled');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ LINE redirect handling failed: $e');
+      }
+      // エラーは UI 側で改めて表示する必要があるが、起動はブロックしない
+    }
+  }
 
   runApp(const TsunaguApp());
 }

@@ -25,6 +25,9 @@ dependencies:
   firebase_storage: 12.3.2
   google_sign_in: 6.2.1
 
+  # LINE login (external browser / web redirect)
+  url_launcher: ^6.3.0
+
   # Image handling for profile photos
   image_picker: ^1.1.2
 
