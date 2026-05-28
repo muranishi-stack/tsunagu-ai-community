@@ -375,10 +375,12 @@ class UserService {
     required int slot,
     String contentType = 'image/jpeg',
   }) async {
+    // パス: users/{uid}/photos/{slot}.jpg (Storage rulesに合わせる)
     final ref = _storage
         .ref()
-        .child('profile_photos')
+        .child('users')
         .child(uid)
+        .child('photos')
         .child('$slot.jpg');
 
     final metadata = SettableMetadata(contentType: contentType);
@@ -395,8 +397,9 @@ class UserService {
   }) async {
     final ref = _storage
         .ref()
-        .child('profile_photos')
+        .child('users')
         .child(uid)
+        .child('photos')
         .child('$slot.jpg');
 
     final metadata = SettableMetadata(contentType: 'image/jpeg');
@@ -410,8 +413,9 @@ class UserService {
     try {
       await _storage
           .ref()
-          .child('profile_photos')
+          .child('users')
           .child(uid)
+          .child('photos')
           .child('$slot.jpg')
           .delete();
     } catch (_) {
