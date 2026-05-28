@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'services/theme_service.dart';
+import 'services/super_like_service.dart';
 import 'screens/auth/auth_gate.dart';
 import 'admin/screens/login_screen.dart';
 import 'admin/screens/dashboard_screen.dart';
@@ -41,6 +42,9 @@ Future<void> main() async {
 
   // Initialize ThemeService (load saved theme mode)
   await ThemeService().init();
+
+  // Initialize SuperLikeService (load monthly quota)
+  await SuperLikeService().initialize();
 
   runApp(const TsunaguApp());
 }

@@ -8,7 +8,10 @@ import '../widgets/boost_button.dart';
 import '../services/user_preferences.dart';
 import '../services/ai_matching_service.dart';
 import '../services/user_service.dart';
+import '../services/super_like_service.dart';
+import '../services/subscription_service.dart';
 import 'profile_detail_screen.dart';
+import 'subscription_screen.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -35,6 +38,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   Animation<Offset>? _animation;
   final _prefs = UserPreferences();
   final _userSvc = UserService();
+  final _superLike = SuperLikeService();
+  final _subscription = SubscriptionService();
+
+  /// Rewind用スワイプ履歴スタック（最新が末尾）
+  /// 各エントリ: { profile, isLike, isSuperLike, insertIndex }
+  final List<_SwipeHistoryEntry> _swipeHistory = [];
 
   @override
   void initState() {
@@ -44,9 +53,14 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       duration: const Duration(milliseconds: 300),
     );
     _prefs.addListener(_onPrefsChanged);
+    _superLike.addListener(_onSuperLikeChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfilesFromFirestore();
     });
+  }
+
+  void _onSuperLikeChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onPrefsChanged() {
@@ -139,6 +153,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   @override
   void dispose() {
     _prefs.removeListener(_onPrefsChanged);
+    _superLike.removeListener(_onSuperLikeChanged);
     _animController.dispose();
     super.dispose();
   }
@@ -162,7 +177,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     }
   }
 
-  void _swipeCard(bool isLike, Size size) {
+  void _swipeCard(bool isLike, Size size, {bool isSuperLike = false}) {
     final endX = isLike ? size.width * 1.5 : -size.width * 1.5;
     _animation = Tween<Offset>(
       begin: _dragOffset,
@@ -182,17 +197,21 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     _animController.forward(from: 0).then((_) async {
       // Firestoreにスワイプ記録 + 相互Like判定
       String? matchedId;
+      UserProfile? swipedProfile;
+      int? swipedIdx;
       if (_profiles.isNotEmpty) {
-        final swipedUser = _profiles[_currentIndex % _profiles.length];
+        swipedIdx = _currentIndex % _profiles.length;
+        swipedProfile = _profiles[swipedIdx];
         final myUid = _userSvc.currentUid;
         if (myUid != null) {
           try {
             matchedId = await _userSvc.recordSwipe(
               fromUid: myUid,
-              toUid: swipedUser.id,
+              toUid: swipedProfile.id,
               liked: isLike,
+              isSuperLike: isSuperLike,
             );
-            _swipedUids.add(swipedUser.id);
+            _swipedUids.add(swipedProfile.id);
           } catch (e) {
             // 記録失敗してもUIは進める
             debugPrint('recordSwipe error: $e');
@@ -202,7 +221,23 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       if (!mounted) return;
       setState(() {
         if (isLike) {
-          _showMatchAnimation(matchedId: matchedId);
+          _showMatchAnimation(
+            matchedId: matchedId,
+            isSuperLike: isSuperLike,
+          );
+        }
+        // 履歴に積む（Rewind用）
+        if (swipedProfile != null && swipedIdx != null) {
+          _swipeHistory.add(_SwipeHistoryEntry(
+            profile: swipedProfile,
+            isLike: isLike,
+            isSuperLike: isSuperLike,
+            insertIndex: swipedIdx,
+          ));
+          // 最大10件まで保持
+          if (_swipeHistory.length > 10) {
+            _swipeHistory.removeAt(0);
+          }
         }
         // スワイプ済みリストから削除
         if (_profiles.isNotEmpty) {
@@ -218,6 +253,162 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         _isDragging = false;
       });
     });
+  }
+
+  /// Rewind: 直前のスワイプを取り消す（プレミアム限定機能）
+  Future<void> _handleRewind() async {
+    // 履歴がなければ何もしない
+    if (_swipeHistory.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('巻き戻すスワイプがありません'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // プレミアム限定
+    if (!_subscription.hasActivePremium) {
+      _showPremiumGate(
+        title: 'Rewindはプレミアム機能',
+        message: '直前のスワイプを取り消すには\nプレミアムプランへの加入が必要です。',
+      );
+      return;
+    }
+
+    final last = _swipeHistory.removeLast();
+    final myUid = _userSvc.currentUid;
+    if (myUid != null) {
+      try {
+        await _userSvc.undoSwipe(fromUid: myUid, toUid: last.profile.id);
+        _swipedUids.remove(last.profile.id);
+      } catch (e) {
+        debugPrint('undoSwipe error: $e');
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      // プロフィールを元の位置に戻す
+      final insertAt = last.insertIndex.clamp(0, _profiles.length);
+      _profiles.insert(insertAt, last.profile);
+      _currentIndex = insertAt;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppTheme.vermillion,
+        content: Row(
+          children: [
+            const Icon(Icons.replay, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${last.profile.name}さんへのスワイプを取り消しました',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// SuperLike送信処理
+  Future<void> _handleSuperLike(Size size) async {
+    if (_profiles.isEmpty) return;
+    if (_isDragging) return;
+
+    // 残数チェック
+    if (!_superLike.canSend) {
+      _showSuperLikeExhaustedDialog();
+      return;
+    }
+
+    // 残数消費
+    final consumed = await _superLike.consumeSuperLike();
+    if (!consumed) return;
+
+    // SuperLike送信（Likeとして扱い、isSuperLike=trueでマーク）
+    setState(() {
+      _dragOffset = Offset(0, -50);
+    });
+    _swipeCard(true, size, isSuperLike: true);
+  }
+
+  void _showSuperLikeExhaustedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface(context),
+        title: Row(
+          children: const [
+            Icon(Icons.auto_awesome, color: AppTheme.vermillion),
+            SizedBox(width: 8),
+            Text('Super Like 残数 0'),
+          ],
+        ),
+        content: Text(
+          '今月のSuper Like送信回数（5回）を使い切りました。\n来月1日にリセットされます。',
+          style: TextStyle(color: AppTheme.textSecondary(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPremiumGate({required String title, required String message}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface(context),
+        title: Row(
+          children: [
+            const Icon(Icons.workspace_premium, color: AppTheme.gold),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(color: AppTheme.textPrimary(context)),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(color: AppTheme.textSecondary(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('閉じる'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.vermillion,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SubscriptionScreen(),
+                ),
+              );
+            },
+            child: const Text('プランを見る'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _resetCard() {
@@ -243,9 +434,50 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     });
   }
 
-  void _showMatchAnimation({String? matchedId}) {
+  void _showMatchAnimation({String? matchedId, bool isSuperLike = false}) {
     // 相互Like成立時 (matchedId != null) は強制的に表示
     final isMutualMatch = matchedId != null;
+
+    // SuperLikeはLike送信時に必ずフィードバック表示
+    if (isSuperLike) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.vermillion,
+          content: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isMutualMatch
+                      ? 'Super Like で マッチ成立！ 🎉'
+                      : 'Super Like 送信完了 - 相手に目立って通知されます',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              Text(
+                '残${_superLike.remaining}/${SuperLikeService.monthlyQuota}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: isMutualMatch ? 3 : 2),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(24),
+        ),
+      );
+      return;
+    }
+
     if (_profiles.isEmpty && !isMutualMatch) return;
 
     final showAnim = isMutualMatch ||
@@ -874,38 +1106,50 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   }
 
   Widget _buildActionButtons() {
+    final size = MediaQuery.of(context).size;
+    final superLikeRemaining = _superLike.remaining;
+    final isPremium = _subscription.hasActivePremium;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
+          // Rewind: プレミアム限定（無料時は鍵バッジ）
           _buildActionButton(
-            icon: Icons.refresh,
+            icon: Icons.replay,
+            iconColor: AppTheme.gold,
             size: 48,
-            iconSize: 18,
-            onTap: () {},
-            isAccent: false,
+            iconSize: 22,
+            onTap: _handleRewind,
+            lockBadge: !isPremium,
           ),
+          // PASS
           _buildActionButton(
             icon: Icons.close,
+            iconColor: AppTheme.charcoal,
             size: 64,
-            iconSize: 26,
+            iconSize: 28,
             onTap: () => _handleActionButton(false),
-            isAccent: false,
           ),
+          // SuperLike: 月5回制限（残数バッジ表示）
           _buildActionButton(
             icon: Icons.auto_awesome,
+            iconColor: AppTheme.vermillion,
             size: 48,
-            iconSize: 18,
-            onTap: () {},
-            isAccent: true,
+            iconSize: 22,
+            onTap: () => _handleSuperLike(size),
+            counterBadge: superLikeRemaining,
+            counterColor: superLikeRemaining > 0
+                ? AppTheme.vermillion
+                : Colors.grey,
           ),
+          // LIKE
           _buildActionButton(
-            icon: Icons.favorite_outline,
+            icon: Icons.favorite,
+            iconColor: AppTheme.vermillion,
             size: 64,
-            iconSize: 26,
+            iconSize: 28,
             onTap: () => _handleActionButton(true),
-            isAccent: true,
           ),
         ],
       ),
@@ -914,34 +1158,105 @@ class _DiscoverScreenState extends State<DiscoverScreen>
 
   Widget _buildActionButton({
     required IconData icon,
+    required Color iconColor,
     required double size,
     required double iconSize,
     required VoidCallback onTap,
-    required bool isAccent,
+    int? counterBadge,
+    Color? counterColor,
+    bool lockBadge = false,
   }) {
-    final color = isAccent ? AppTheme.gold : AppTheme.black;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppTheme.white,
-          border: Border.all(
-            color: color.withValues(alpha: 0.4),
-            width: 0.8,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.surface(context),
+              border: Border.all(
+                color: iconColor.withValues(alpha: 0.4),
+                width: 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: AppTheme.isDark(context) ? 0.4 : 0.08,
+                  ),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
+            child: Icon(icon, size: iconSize, color: iconColor),
+          ),
         ),
-        child: Icon(icon, size: iconSize, color: color),
-      ),
+        // SuperLike残数バッジ
+        if (counterBadge != null)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: counterColor ?? AppTheme.vermillion,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppTheme.surface(context),
+                  width: 1.5,
+                ),
+              ),
+              child: Text(
+                '$counterBadge',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        // Rewind鍵バッジ（プレミアム限定表示）
+        if (lockBadge)
+          Positioned(
+            top: -2,
+            right: -2,
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppTheme.gold,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.surface(context),
+                  width: 1.5,
+                ),
+              ),
+              child: const Icon(
+                Icons.lock,
+                size: 10,
+                color: Colors.white,
+              ),
+            ),
+          ),
+      ],
     );
   }
+}
+
+/// Rewind用のスワイプ履歴エントリ
+class _SwipeHistoryEntry {
+  final UserProfile profile;
+  final bool isLike;
+  final bool isSuperLike;
+  final int insertIndex;
+  _SwipeHistoryEntry({
+    required this.profile,
+    required this.isLike,
+    required this.isSuperLike,
+    required this.insertIndex,
+  });
 }

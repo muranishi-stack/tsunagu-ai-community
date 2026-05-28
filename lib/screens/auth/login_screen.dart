@@ -52,6 +52,37 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _errorMsg = null;
+    });
+    try {
+      final cred = await UserService().signInWithGoogle();
+      if (cred == null) {
+        // キャンセル
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      // AuthGate が自動的に次の画面に遷移する
+    } on FirebaseAuthException catch (e) {
+      setState(() => _errorMsg = _mapAuthError(e));
+    } catch (e) {
+      setState(() => _errorMsg = 'Googleログインに失敗しました: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showLineComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('LINEログインは近日公開予定です'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _forgotPassword() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
@@ -267,6 +298,77 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
 
                     const SizedBox(height: 24),
+                    // 区切り線
+                    Row(
+                      children: const [
+                        Expanded(child: Divider(thickness: 1)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'または',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(thickness: 1)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Googleでログイン
+                    SizedBox(
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: _loading ? null : _loginWithGoogle,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          side: const BorderSide(
+                            color: Color(0xFFDADCE0),
+                            width: 1,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: _GoogleLogo(),
+                        label: const Text(
+                          'Googleでログイン',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // LINEでログイン（準備中）
+                    SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _loading ? null : _showLineComingSoon,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF06C755),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.chat_bubble, size: 20),
+                        label: const Text(
+                          'LINEでログイン（準備中）',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -305,4 +407,90 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+
+/// Googleロゴ（公式カラーの簡易再現）
+class _GoogleLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(
+        painter: _GoogleLogoPainter(),
+      ),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 簡易Googleロゴ: 4色の弧を表現
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Blue arc (top-right)
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      -0.5,
+      1.5,
+      true,
+      paint,
+    );
+    // Green arc (bottom-right)
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      1.0,
+      1.5,
+      true,
+      paint,
+    );
+    // Yellow arc (bottom-left)
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      2.5,
+      1.5,
+      true,
+      paint,
+    );
+    // Red arc (top-left)
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      4.0,
+      1.5,
+      true,
+      paint,
+    );
+    // White hole
+    paint.color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), r * 0.45, paint);
+    // "G" letter
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4),
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(cx - textPainter.width / 2, cy - textPainter.height / 2),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

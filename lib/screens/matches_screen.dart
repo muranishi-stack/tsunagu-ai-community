@@ -43,9 +43,23 @@ class _MatchesScreenState extends State<MatchesScreen> {
         ),
       ),
       body: SafeArea(
-        child: StreamBuilder<List<Map<String, dynamic>>>(
-          stream: _svc.watchMatches(uid),
-          builder: (context, snap) {
+        child: Column(
+          children: [
+            // SuperLike受信通知バナー（受信中のみ表示）
+            _SuperLikeReceivedBanner(uid: uid),
+            Expanded(
+              child: _buildMatchesStream(uid),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMatchesStream(String uid) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _svc.watchMatches(uid),
+      builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Center(
                 child: CircularProgressIndicator(
@@ -78,9 +92,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
             });
 
             return _MatchesList(matches: docs, currentUid: uid);
-          },
-        ),
-      ),
+      },
     );
   }
 
@@ -506,4 +518,316 @@ void _openChat(
     context,
     MaterialPageRoute(builder: (_) => ChatScreen(match: match)),
   );
+}
+
+/// SuperLike受信通知バナー
+/// Firestoreから自分宛の未読SuperLikeを監視し、目立つカードで表示
+class _SuperLikeReceivedBanner extends StatefulWidget {
+  final String uid;
+  const _SuperLikeReceivedBanner({required this.uid});
+
+  @override
+  State<_SuperLikeReceivedBanner> createState() =>
+      _SuperLikeReceivedBannerState();
+}
+
+class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
+    with SingleTickerProviderStateMixin {
+  final _svc = UserService();
+  late AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _svc.watchSuperLikesReceived(widget.uid),
+      builder: (context, snap) {
+        final notifications = snap.data ?? const [];
+        if (notifications.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return _buildBanner(notifications);
+      },
+    );
+  }
+
+  Widget _buildBanner(List<Map<String, dynamic>> notifications) {
+    final count = notifications.length;
+    return AnimatedBuilder(
+      animation: _pulseCtrl,
+      builder: (context, child) {
+        final glow = 0.3 + (_pulseCtrl.value * 0.3);
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.vermillion,
+                AppTheme.vermillion.withValues(alpha: 0.85),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.vermillion.withValues(alpha: glow),
+                blurRadius: 16,
+                spreadRadius: 1,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _showSuperLikersList(notifications),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'SUPER LIKE',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 2.0,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: AppTheme.vermillion,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$count人があなたにSuper Likeを送りました',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSuperLikersList(List<Map<String, dynamic>> notifications) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surface(context),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (_, scrollCtl) => Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.border(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.auto_awesome,
+                      color: AppTheme.vermillion, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'あなたに Super Like (${notifications.length})',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollCtl,
+                  itemCount: notifications.length,
+                  itemBuilder: (_, idx) {
+                    final n = notifications[idx];
+                    final fromUid = (n['from_uid'] as String?) ?? '';
+                    final notifId = n['id'] as String;
+                    return _SuperLikerTile(
+                      fromUid: fromUid,
+                      notificationId: notifId,
+                      onTap: () {
+                        _svc.markSuperLikeSeen(notifId);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// SuperLike送信者のプロフィール表示タイル
+class _SuperLikerTile extends StatelessWidget {
+  final String fromUid;
+  final String notificationId;
+  final VoidCallback onTap;
+  const _SuperLikerTile({
+    required this.fromUid,
+    required this.notificationId,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<UserProfile?>(
+      future: UserService().getProfile(fromUid),
+      builder: (context, snap) {
+        final profile = snap.data;
+        return ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+          leading: Stack(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: AppTheme.surfaceVariant(context),
+                backgroundImage:
+                    (profile?.photos.isNotEmpty == true)
+                        ? NetworkImage(profile!.photos.first)
+                        : null,
+                child: (profile?.photos.isEmpty == true)
+                    ? Icon(Icons.person,
+                        color: AppTheme.textTertiary(context))
+                    : null,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.vermillion,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.surface(context),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          title: Text(
+            profile?.name ?? '...',
+            style: TextStyle(
+              color: AppTheme.textPrimary(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            'あなたに Super Like を送りました',
+            style: TextStyle(
+              color: AppTheme.vermillion,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          trailing: const Icon(
+            Icons.chevron_right,
+            color: AppTheme.vermillion,
+          ),
+          onTap: onTap,
+        );
+      },
+    );
+  }
 }

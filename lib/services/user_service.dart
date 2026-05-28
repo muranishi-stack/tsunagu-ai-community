@@ -11,6 +11,8 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../models/connection_category.dart';
 import '../models/user_profile.dart';
@@ -68,12 +70,53 @@ class UserService {
     return cred;
   }
 
-  /// ログアウト
-  Future<void> signOut() => _auth.signOut();
+  /// ログアウト（GoogleもFirebaseも両方ログアウト）
+  Future<void> signOut() async {
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {
+      // Googleにサインインしていない場合は無視
+    }
+    await _auth.signOut();
+  }
 
   /// パスワードリセットメール送信
   Future<void> sendPasswordResetEmail(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
+
+  /// Googleアカウントでサインイン
+  /// プラットフォームに応じて適切な認証フローを使用
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      if (kIsWeb) {
+        // Web: Firebase Auth の signInWithPopup
+        final googleProvider = GoogleAuthProvider();
+        googleProvider.setCustomParameters({'prompt': 'select_account'});
+        return await _auth.signInWithPopup(googleProvider);
+      } else {
+        // Android/iOS: google_sign_in パッケージを使用
+        final googleSignIn = GoogleSignIn();
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          // ユーザーがキャンセル
+          return null;
+        }
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        return await _auth.signInWithCredential(credential);
+      }
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (e) {
+      throw FirebaseAuthException(
+        code: 'google-signin-failed',
+        message: 'Googleログインに失敗しました: $e',
+      );
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // PROFILE CRUD
@@ -214,18 +257,34 @@ class UserService {
 
   /// スワイプ記録
   /// Returns: マッチ成立した場合は matchId、未成立なら null
+  /// [isSuperLike] true の場合、Super Like 通知も生成
   Future<String?> recordSwipe({
     required String fromUid,
     required String toUid,
     required bool liked,
+    bool isSuperLike = false,
   }) async {
     final swipeId = '${fromUid}_$toUid';
     await _swipes.doc(swipeId).set({
       'from_uid': fromUid,
       'to_uid': toUid,
       'liked': liked,
+      'is_super_like': isSuperLike,
       'created_at': FieldValue.serverTimestamp(),
     });
+
+    // Super Like の場合、相手の通知コレクションに記録
+    if (isSuperLike && liked) {
+      await _db
+          .collection('superlike_notifications')
+          .doc('${toUid}_$fromUid')
+          .set({
+        'to_uid': toUid,
+        'from_uid': fromUid,
+        'created_at': FieldValue.serverTimestamp(),
+        'seen': false,
+      });
+    }
 
     // Like の場合のみ相互Like判定
     if (!liked) return null;
@@ -243,6 +302,7 @@ class UserService {
       'user_a': fromUid.compareTo(toUid) < 0 ? fromUid : toUid,
       'user_b': fromUid.compareTo(toUid) < 0 ? toUid : fromUid,
       'matched_at': FieldValue.serverTimestamp(),
+      'is_super_like_match': isSuperLike,
       'last_message': null,
       'last_message_time': null,
       'last_message_sender': null,
@@ -251,6 +311,46 @@ class UserService {
     }, SetOptions(merge: true));
 
     return matchId;
+  }
+
+  /// スワイプを取り消し（Rewind機能用）
+  /// 関連するマッチ・SuperLike通知も削除
+  Future<void> undoSwipe({
+    required String fromUid,
+    required String toUid,
+  }) async {
+    final swipeId = '${fromUid}_$toUid';
+    // Swipeレコード削除
+    await _swipes.doc(swipeId).delete();
+    // Matchがあれば削除
+    final matchId = _matchId(fromUid, toUid);
+    await _matches.doc(matchId).delete().catchError((_) {});
+    // SuperLike通知があれば削除
+    await _db
+        .collection('superlike_notifications')
+        .doc('${toUid}_$fromUid')
+        .delete()
+        .catchError((_) {});
+  }
+
+  /// 自分が受信したSuperLike一覧（未読のみ）
+  Stream<List<Map<String, dynamic>>> watchSuperLikesReceived(String uid) {
+    return _db
+        .collection('superlike_notifications')
+        .where('to_uid', isEqualTo: uid)
+        .where('seen', isEqualTo: false)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => {'id': d.id, ...d.data()})
+            .toList());
+  }
+
+  /// SuperLike通知を既読にする
+  Future<void> markSuperLikeSeen(String notificationId) async {
+    await _db
+        .collection('superlike_notifications')
+        .doc(notificationId)
+        .update({'seen': true});
   }
 
   /// 自分が既にスワイプしたUID一覧 (excludeUids 用)

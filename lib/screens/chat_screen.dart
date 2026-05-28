@@ -4,6 +4,8 @@ import '../models/connection_category.dart';
 import '../theme/app_theme.dart';
 import '../services/chat_templates.dart';
 import '../services/user_service.dart';
+import '../services/subscription_service.dart';
+import 'subscription_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final Match match;
@@ -18,6 +20,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _showAISuggestions = false;
   late List<String> _aiSuggestions;
   final _svc = UserService();
+  final _subscription = SubscriptionService();
   String _currentUid = '';
   List<Message> _messages = [];
   bool _isSending = false;
@@ -27,6 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _currentUid = _svc.currentUid ?? '';
     _aiSuggestions = ChatTemplates.getOpeners(widget.match.user);
+    _subscription.addListener(_onSubscriptionChanged);
 
     // 開いた瞬間に未読カウントをリセット
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -39,10 +43,20 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  void _onSubscriptionChanged() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
     if (_isSending) return;
     if (widget.match.matchId.isEmpty || _currentUid.isEmpty) return;
+
+    // 無料プランチェック
+    if (!_subscription.hasActivePremium) {
+      _showPremiumRequiredDialog();
+      return;
+    }
 
     _controller.clear();
     setState(() {
@@ -70,7 +84,65 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _subscription.removeListener(_onSubscriptionChanged);
     super.dispose();
+  }
+
+  void _showPremiumRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface(context),
+        title: Row(
+          children: [
+            const Icon(Icons.lock, color: AppTheme.gold),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'メッセージ交換はプレミアム限定',
+                style: TextStyle(
+                  color: AppTheme.textPrimary(context),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '無料プランではスワイプはできますが、\nマッチ後のメッセージ交換にはプレミアムプランへの加入が必要です。\n\nプレミアムプランで、\n気になる相手と無制限に会話を楽しもう！',
+          style: TextStyle(
+            color: AppTheme.textSecondary(context),
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              '閉じる',
+              style: TextStyle(color: AppTheme.textSecondary(context)),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.vermillion,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SubscriptionScreen(),
+                ),
+              );
+            },
+            child: const Text('プランを見る'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -388,11 +460,19 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputField() {
+    final isPremium = _subscription.hasActivePremium;
+
+    // 無料プラン: メッセージ送信ロック表示
+    if (!isPremium) {
+      return _buildLockedInputField();
+    }
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       decoration: BoxDecoration(
-        color: AppTheme.white,
-        border: Border(top: BorderSide(color: AppTheme.surfaceVariant(context), width: 0.5)),
+        color: AppTheme.surface(context),
+        border: Border(
+            top: BorderSide(color: AppTheme.border(context), width: 0.5)),
       ),
       child: Row(
         children: [
@@ -403,12 +483,16 @@ class _ChatScreenState extends State<ChatScreen> {
               height: 40,
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: _showAISuggestions ? AppTheme.gold : AppTheme.paleGrey,
+                    color: _showAISuggestions
+                        ? AppTheme.gold
+                        : AppTheme.border(context),
                     width: 0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
               child: Icon(Icons.auto_awesome,
-                  color: _showAISuggestions ? AppTheme.gold : AppTheme.grey,
+                  color: _showAISuggestions
+                      ? AppTheme.gold
+                      : AppTheme.textTertiary(context),
                   size: 16),
             ),
           ),
@@ -418,11 +502,13 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: BoxDecoration(
                 color: AppTheme.surfaceVariant(context),
                 borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: AppTheme.surfaceVariant(context), width: 0.5),
+                border: Border.all(
+                    color: AppTheme.border(context), width: 0.5),
               ),
               child: TextField(
                 controller: _controller,
-                style: const TextStyle(fontSize: 13),
+                style: TextStyle(
+                    fontSize: 13, color: AppTheme.textPrimary(context)),
                 decoration: InputDecoration(
                   hintText: 'メッセージ...',
                   hintStyle: TextStyle(
@@ -444,7 +530,7 @@ class _ChatScreenState extends State<ChatScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _isSending ? AppTheme.grey : AppTheme.black,
+                color: _isSending ? AppTheme.grey : AppTheme.vermillion,
                 borderRadius: BorderRadius.circular(2),
               ),
               child: _isSending
@@ -453,11 +539,113 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor:
-                            AlwaysStoppedAnimation(AppTheme.gold),
+                            AlwaysStoppedAnimation(Colors.white),
                       ),
                     )
                   : const Icon(Icons.arrow_upward,
-                      color: AppTheme.gold, size: 16),
+                      color: Colors.white, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 無料プラン向け: メッセージ入力欄をロックしてアップグレード誘導
+  Widget _buildLockedInputField() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      decoration: BoxDecoration(
+        color: AppTheme.surface(context),
+        border: Border(
+            top: BorderSide(color: AppTheme.border(context), width: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.vermillion.withValues(alpha: 0.08),
+                  AppTheme.gold.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.vermillion.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.vermillion,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.lock,
+                      color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'メッセージ交換はプレミアム限定',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary(context),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'プランに加入して会話を始めよう',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary(context),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.vermillion,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.workspace_premium, size: 20),
+              label: const Text(
+                'プレミアムプランを見る',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                ),
+              ),
             ),
           ),
         ],
