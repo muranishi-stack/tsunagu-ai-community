@@ -7,10 +7,10 @@
 // Created: 2025
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 
 import '../models/connection_category.dart';
 import '../models/user_profile.dart';
@@ -148,10 +148,19 @@ class UserService {
   // DISCOVER (スワイプ用ユーザー取得)
   // ═══════════════════════════════════════════════════════════════════════
 
+  /// Seedデータを除外するかどうかのフラグ
+  /// - dart-define で `INCLUDE_SEED_DATA=false` を渡せば本番モードで除外
+  /// - デフォルト (未指定) は true → 開発/プレビュー/本番すべてで Seed を表示
+  /// - 本番リリース時は `flutter build web --release --dart-define=INCLUDE_SEED_DATA=false` で除外可能
+  static const bool _includeSeedData = bool.fromEnvironment(
+    'INCLUDE_SEED_DATA',
+    defaultValue: true,
+  );
+
   /// スワイプ画面用のユーザー一覧取得
   ///
   /// - 自分自身は除外
-  /// - kReleaseMode=true の場合は is_seed_data=true を除外
+  /// - INCLUDE_SEED_DATA=false の場合は is_seed_data=true を除外
   /// - すでにスワイプ済みのユーザーも除外 (excludeUids)
   Future<List<UserProfile>> discoverUsers({
     required String currentUid,
@@ -171,9 +180,9 @@ class UserService {
       if (excludeAll.contains(doc.id)) continue;
       final data = doc.data();
 
-      // is_seed_data フィルタ (release modeでは除外)
+      // is_seed_data フィルタ (本番モードでのみ除外、デフォルトは表示)
       final isSeed = (data['is_seed_data'] as bool?) ?? false;
-      if (kReleaseMode && isSeed) continue;
+      if (!_includeSeedData && isSeed) continue;
 
       // 名前と写真が無いユーザー (オンボーディング未完了) は除外
       final name = data['name'] as String?;
