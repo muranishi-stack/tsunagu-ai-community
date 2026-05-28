@@ -4,7 +4,11 @@
 // 2. ログイン済 + プロフィール未作成 → OnboardingScreen
 // 3. ログイン済 + プロフィール有 → MainScreen
 //
+// プロフィール作成時はFirestoreのドキュメントを購読するため、
+// users/{uid}が出現した瞬間に自動的にMainScreenへ遷移する。
+//
 // Phase 1.5 - TSUNAGU
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -33,16 +37,33 @@ class AuthGate extends StatelessWidget {
           return const LoginScreen();
         }
 
-        // ログイン済 → プロフィール存在チェック
-        return FutureBuilder<bool>(
-          future: UserService().hasProfile(user.uid),
-          builder: (context, profileSnap) {
-            if (profileSnap.connectionState == ConnectionState.waiting) {
+        // ログイン済 → users/{uid} を購読してリアルタイム遷移
+        // プロフィール作成が完了した瞬間に自動でMainScreenに切り替わる
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots(),
+          builder: (context, docSnap) {
+            // 接続待ち
+            if (docSnap.connectionState == ConnectionState.waiting &&
+                !docSnap.hasData) {
               return const _SplashScreen();
             }
 
-            final hasProfile = profileSnap.data ?? false;
-            if (!hasProfile) {
+            // ドキュメントが存在しない or 必須フィールド (name + photos) 未入力
+            // → オンボーディング画面
+            final exists = docSnap.data?.exists ?? false;
+            if (!exists) {
+              return const OnboardingScreen();
+            }
+
+            final data = docSnap.data?.data();
+            final name = (data?['name'] as String?) ?? '';
+            final photos = (data?['photos'] as List?) ?? const [];
+            final profileComplete = name.isNotEmpty && photos.isNotEmpty;
+
+            if (!profileComplete) {
               return const OnboardingScreen();
             }
 

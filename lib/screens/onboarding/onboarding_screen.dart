@@ -31,6 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   int _currentStep = 0;
   bool _saving = false;
+  bool _saved = false; // 保存成功後はボタン無効化のまま遷移待ち
   String? _saveError;
 
   // Step 1: ニックネーム
@@ -169,6 +170,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // ─── 保存 ───────────────────────────────────────────────────────────────
 
   Future<void> _saveProfile() async {
+    // 二重実行ガード (押下中 or 既に成功済みなら何もしない)
+    if (_saving || _saved) return;
+
     setState(() {
       _saving = true;
       _saveError = null;
@@ -226,16 +230,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
       await svc.createProfile(profile);
 
-      // 保存完了 → AuthGate が自動的に MainScreen に遷移する
+      // 保存完了 → AuthGate (Firestoreリアルタイム購読) が自動的に
+      // MainScreen に遷移する。ここでは _saved=true にして遷移待ち画面を出す
       if (mounted) {
+        setState(() {
+          _saved = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('プロフィールを保存しました！')),
+          const SnackBar(
+            content: Text('プロフィールを保存しました！TSUNAGUへようこそ 🎉'),
+            duration: Duration(seconds: 2),
+          ),
         );
       }
+      // 保存成功時は _saving を false にしない (ボタン無効のまま AuthGate の遷移を待つ)
+      return;
     } catch (e) {
-      setState(() => _saveError = 'プロフィール保存に失敗しました: $e');
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() {
+          _saveError = 'プロフィール保存に失敗しました: $e';
+          _saving = false; // エラー時のみ再試行できるように戻す
+        });
+      }
     }
   }
 
@@ -317,7 +333,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: (_isStepValid() && !_saving)
+                  onPressed: (_isStepValid() && !_saving && !_saved)
                       ? () {
                           if (_currentStep < _totalSteps - 1) {
                             setState(() => _currentStep++);
@@ -334,15 +350,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: _saving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation(Colors.white),
-                          ),
+                  child: (_saving || _saved)
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation(Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _saved ? 'TSUNAGU を起動中...' : '保存中...',
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         )
                       : Text(
                           _currentStep < _totalSteps - 1 ? '次へ' : '登録を完了する',
