@@ -1,0 +1,29 @@
+name: smart_match
+description: "TSUNAGU - 日本限定の多目的コミュニケーションアプリ (恋愛/友達/仕事/学び/趣味)"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  provider: 6.1.5+1
+  shared_preferences: 2.5.3
+  http: 1.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
