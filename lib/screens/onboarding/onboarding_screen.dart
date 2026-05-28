@@ -45,6 +45,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // Step 4: 都道府県
   String? _prefecture;
+  double? _latitude;
+  double? _longitude;
   bool _detectingLocation = false;
   String? _locationError;
 
@@ -114,6 +116,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final result = await LocationService().detectPrefecture();
       setState(() {
         _prefecture = result.prefecture;
+        _latitude = result.latitude;
+        _longitude = result.longitude;
         _detectingLocation = false;
       });
       if (mounted) {
@@ -226,6 +230,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         openTo: _openTo.toList(),
         email: user.email ?? '',
         location: _prefecture!,
+        latitude: _latitude,
+        longitude: _longitude,
+        locationUpdatedAt: (_latitude != null && _longitude != null)
+            ? DateTime.now()
+            : null,
         isSeedData: false,
       );
       await svc.createProfile(profile);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
+import '../services/user_preferences.dart';
 import '../theme/app_theme.dart';
+import '../utils/distance_util.dart';
 
 class ProfileDetailScreen extends StatelessWidget {
   final UserProfile profile;
@@ -119,6 +121,11 @@ class ProfileDetailScreen extends StatelessWidget {
                   _buildDetailRow(Icons.work_outline, profile.occupation),
                   _buildDetailRow(Icons.school_outlined, profile.education),
                   _buildDetailRow(Icons.location_on_outlined, profile.location),
+                  if (_distanceLabel() != null)
+                    _buildDetailRow(
+                      Icons.place_outlined,
+                      'あなたから ${_distanceLabel()}',
+                    ),
                   _buildDetailRow(Icons.straighten, profile.height),
                   const SizedBox(height: 32),
                   _buildSectionHeader('INTERESTS'),
@@ -285,6 +292,19 @@ class ProfileDetailScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// 自分との距離を表示用文字列で返す（lat/lng 両方そろっている時のみ）
+  String? _distanceLabel() {
+    final prefs = UserPreferences();
+    final km = DistanceUtil.tryCalculateKm(
+      lat1: prefs.myLatitude,
+      lon1: prefs.myLongitude,
+      lat2: profile.latitude,
+      lon2: profile.longitude,
+    );
+    if (km == null) return null;
+    return DistanceUtil.formatKm(km);
   }
 
   Widget _buildDetailRow(IconData icon, String text) {

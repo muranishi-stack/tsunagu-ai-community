@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/japan_locations.dart';
 import '../services/user_preferences.dart';
 import '../theme/app_theme.dart';
+import '../utils/distance_util.dart';
 
 /// 都道府県・沿線フィルター ボトムシート
 class LocationFilterSheet extends StatefulWidget {
@@ -27,12 +28,14 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
   final _prefs = UserPreferences();
   String? _tempPrefecture;
   String? _tempTrainLine;
+  double? _tempMaxDistanceKm;
 
   @override
   void initState() {
     super.initState();
     _tempPrefecture = _prefs.filterPrefecture;
     _tempTrainLine = _prefs.filterTrainLine;
+    _tempMaxDistanceKm = _prefs.filterMaxDistanceKm;
   }
 
   @override
@@ -79,6 +82,7 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                       setState(() {
                         _tempPrefecture = null;
                         _tempTrainLine = null;
+                        _tempMaxDistanceKm = null;
                       });
                     },
                     style: TextButton.styleFrom(
@@ -104,6 +108,8 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildDistanceSection(),
+                    const SizedBox(height: 28),
                     _buildPrefectureSection(),
                     if (_tempPrefecture != null &&
                         JapanLocations.hasTrainLineData(_tempPrefecture!)) ...[
@@ -129,6 +135,7 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                   onPressed: () {
                     _prefs.setFilterPrefecture(_tempPrefecture);
                     _prefs.setFilterTrainLine(_tempTrainLine);
+                    _prefs.setFilterMaxDistanceKm(_tempMaxDistanceKm);
                     Navigator.pop(context, true);
                   },
                   style: ElevatedButton.styleFrom(
@@ -154,6 +161,80 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 距離フィルター UI (5/10/25/50/100/∞ km プリセット)
+  Widget _buildDistanceSection() {
+    final hasMyLocation =
+        _prefs.myLatitude != null && _prefs.myLongitude != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              '距離',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.charcoal,
+                letterSpacing: 1.0,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (_tempMaxDistanceKm != null)
+              Text(
+                '${_tempMaxDistanceKm!.toInt()}km 以内',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.vermillion,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                ),
+              )
+            else
+              const Text(
+                '無制限',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.grey,
+                  letterSpacing: 1.0,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        if (!hasMyLocation)
+          const Padding(
+            padding: EdgeInsets.only(top: 4, bottom: 4),
+            child: Text(
+              '現在地が未取得です。アプリ再起動で自動取得します',
+              style: TextStyle(
+                fontSize: 10,
+                color: AppTheme.grey,
+              ),
+            ),
+          ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: DistancePresets.options.map((km) {
+            final label = km == null ? '∞' : '${km.toInt()}km';
+            final selected = _tempMaxDistanceKm == km;
+            return _buildChip(
+              label: label,
+              selected: selected,
+              onTap: () {
+                setState(() {
+                  _tempMaxDistanceKm = km;
+                });
+              },
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

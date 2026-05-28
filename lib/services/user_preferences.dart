@@ -34,6 +34,17 @@ class UserPreferences extends ChangeNotifier {
   String? filterPrefecture; // null = すべて
   String? filterTrainLine;  // null = すべて
 
+  /// 距離フィルター: 何km以内のユーザーのみ表示するか
+  /// null = 距離無制限
+  /// 値あり = lat/lng 未保存ユーザーは非表示 (Choice B)
+  /// デフォルト 25km (Choice A)
+  double? filterMaxDistanceKm = 25.0;
+
+  // 自分の現在地 (起動時GPS自動更新で AuthGate から書き込み)
+  // Firestore とは独立に、フィルタ計算のためメモリ上にも保持する
+  double? myLatitude;
+  double? myLongitude;
+
   /// AIマッチング計算用の自プロフィール
   MyProfile get myProfile => MyProfile(
         age: age,
@@ -89,9 +100,23 @@ class UserPreferences extends ChangeNotifier {
   void clearFilters() {
     filterPrefecture = null;
     filterTrainLine = null;
+    filterMaxDistanceKm = null;
+    notifyListeners();
+  }
+
+  void setFilterMaxDistanceKm(double? km) {
+    filterMaxDistanceKm = km;
+    notifyListeners();
+  }
+
+  void setMyLocation(double? lat, double? lng) {
+    myLatitude = lat;
+    myLongitude = lng;
     notifyListeners();
   }
 
   bool get hasActiveLocationFilter =>
-      filterPrefecture != null || filterTrainLine != null;
+      filterPrefecture != null ||
+      filterTrainLine != null ||
+      filterMaxDistanceKm != null;
 }

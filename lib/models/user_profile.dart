@@ -46,6 +46,15 @@ class UserProfile {
   /// 都道府県（GPS から自動取得 or 手動選択）
   final String prefecture;
 
+  /// GPS 緯度（本人にしか読み取らせない、距離計算サーバー側で利用）
+  final double? latitude;
+
+  /// GPS 経度（本人にしか読み取らせない、距離計算サーバー側で利用）
+  final double? longitude;
+
+  /// 位置情報の最終更新日時
+  final DateTime? locationUpdatedAt;
+
   /// 性別
   final Gender gender;
 
@@ -108,6 +117,9 @@ class UserProfile {
     required this.age,
     this.dateOfBirth,
     required this.prefecture,
+    this.latitude,
+    this.longitude,
+    this.locationUpdatedAt,
     this.gender = Gender.preferNotToSay,
     this.location = '',
     this.occupation = '',
@@ -192,6 +204,9 @@ class UserProfile {
       age: age,
       dateOfBirth: dob,
       prefecture: (data['prefecture'] as String?) ?? '',
+      latitude: (data['latitude'] as num?)?.toDouble(),
+      longitude: (data['longitude'] as num?)?.toDouble(),
+      locationUpdatedAt: toDt(data['location_updated_at']),
       gender: Gender.fromString(data['gender'] as String?),
       location: (data['location'] as String?) ?? '',
       occupation: (data['occupation'] as String?) ?? '',
@@ -220,6 +235,10 @@ class UserProfile {
       'age': age,
       if (dateOfBirth != null) 'date_of_birth': Timestamp.fromDate(dateOfBirth!),
       'prefecture': prefecture,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (locationUpdatedAt != null)
+        'location_updated_at': Timestamp.fromDate(locationUpdatedAt!),
       'gender': gender.name,
       'location': location,
       'occupation': occupation,
@@ -249,6 +268,9 @@ class UserProfile {
     int? age,
     DateTime? dateOfBirth,
     String? prefecture,
+    double? latitude,
+    double? longitude,
+    DateTime? locationUpdatedAt,
     Gender? gender,
     String? location,
     String? occupation,
@@ -274,6 +296,9 @@ class UserProfile {
       age: age ?? this.age,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       prefecture: prefecture ?? this.prefecture,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
       gender: gender ?? this.gender,
       location: location ?? this.location,
       occupation: occupation ?? this.occupation,

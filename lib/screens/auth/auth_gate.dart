@@ -12,10 +12,38 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/location_service.dart';
+import '../../services/user_preferences.dart';
 import '../../services/user_service.dart';
 import '../main_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import 'login_screen.dart';
+
+/// アプリ起動毎に GPS を1回サイレント更新するためのフラグ
+/// （同セッション内で何度も AuthGate が再ビルドされても1回だけ実行する）
+bool _gpsAutoUpdateAttempted = false;
+
+/// 起動時GPS自動更新 (バックグラウンド・サイレント)
+/// - 既に位置情報許可済みのユーザーのみ実行
+/// - 失敗しても UI を妨げない
+Future<void> _attemptStartupLocationUpdate() async {
+  if (_gpsAutoUpdateAttempted) return;
+  _gpsAutoUpdateAttempted = true;
+
+  try {
+    final result = await LocationService().tryDetectSilently();
+    if (result == null) return;
+    await UserService().updateUserLocation(
+      latitude: result.latitude,
+      longitude: result.longitude,
+      prefecture: result.prefecture,
+    );
+    // メモリ上のフィルタ用座標も更新
+    UserPreferences().setMyLocation(result.latitude, result.longitude);
+  } catch (_) {
+    // バックグラウンド更新失敗は静かに無視
+  }
+}
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -69,6 +97,9 @@ class AuthGate extends StatelessWidget {
 
             // 最終アクティブ時刻を更新 (非同期、結果は待たない)
             UserService().touchLastActive();
+
+            // 起動時GPS自動更新 (Choice B: 毎回起動時) — 非同期・サイレント
+            _attemptStartupLocationUpdate();
 
             return const MainScreen();
           },

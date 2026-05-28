@@ -124,6 +124,69 @@ class LocationService {
     );
   }
 
+  /// バックグラウンドGPS更新（権限プロンプトを出さない・例外を返さない）
+  /// 起動時の自動更新用。既に許可されている場合のみ取得し、失敗時は null を返す。
+  Future<LocationResult?> tryDetectSilently() async {
+    try {
+      // GPSサービスチェック (プロンプト出さない)
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      // 既存パーミッションのみチェック (requestPermission しない)
+      final perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      // 位置取得 (タイムアウト短め)
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+
+      // 逆ジオコーディング (任意)
+      String prefecture = _fallbackPrefectureFromLatLng(
+        pos.latitude,
+        pos.longitude,
+      );
+      String? city;
+      try {
+        try {
+          await setLocaleIdentifier('ja_JP');
+        } catch (_) {}
+        final placemarks = await placemarkFromCoordinates(
+          pos.latitude,
+          pos.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          if (p.administrativeArea != null &&
+              p.administrativeArea!.isNotEmpty) {
+            prefecture = _normalizePrefecture(p.administrativeArea!);
+          }
+          city = p.locality;
+        }
+      } catch (_) {
+        // 逆ジオコーディング失敗は許容
+      }
+
+      return LocationResult(
+        prefecture: prefecture,
+        city: city,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Silent GPS update failed: $e');
+      }
+      return null;
+    }
+  }
+
   /// "Tokyo" や "東京" を "東京都" に正規化
   String _normalizePrefecture(String raw) {
     final r = raw.trim();

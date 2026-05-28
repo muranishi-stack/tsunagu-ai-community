@@ -8,6 +8,7 @@ import '../widgets/boost_button.dart';
 import '../services/user_preferences.dart';
 import '../services/ai_matching_service.dart';
 import '../services/user_service.dart';
+import '../utils/distance_util.dart';
 import '../services/super_like_service.dart';
 import '../services/subscription_service.dart';
 import 'profile_detail_screen.dart';
@@ -123,6 +124,24 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           .toList();
     }
 
+    // 2.5 距離フィルター (Choice B: lat/lng 未保存ユーザーは完全非表示)
+    final maxKm = _prefs.filterMaxDistanceKm;
+    if (maxKm != null &&
+        _prefs.myLatitude != null &&
+        _prefs.myLongitude != null) {
+      filtered = filtered.where((p) {
+        // 相手の lat/lng が未保存 → 非表示 (Choice B)
+        if (p.latitude == null || p.longitude == null) return false;
+        final km = DistanceUtil.calculateKm(
+          _prefs.myLatitude!,
+          _prefs.myLongitude!,
+          p.latitude!,
+          p.longitude!,
+        );
+        return km <= maxKm;
+      }).toList();
+    }
+
     // 3. AIスコアリング・並べ替え
     final desired = category ?? _prefs.primaryCategory;
     final ranked = AIMatchingService.rankProfiles(
@@ -148,6 +167,22 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   Future<void> _openLocationFilter() async {
     await LocationFilterSheet.show(context);
     // SheetがUserPreferencesを直接更新→listenerが_applyFilters呼出
+  }
+
+  /// カード上に表示する距離ラベル ("2.3km" など)。
+  /// 自分または相手の lat/lng が未設定の場合は null を返す（バッジ非表示）。
+  String? _distanceLabelFor(UserProfile profile) {
+    final myLat = _prefs.myLatitude;
+    final myLng = _prefs.myLongitude;
+    if (myLat == null || myLng == null) return null;
+    if (profile.latitude == null || profile.longitude == null) return null;
+    final km = DistanceUtil.calculateKm(
+      myLat,
+      myLng,
+      profile.latitude!,
+      profile.longitude!,
+    );
+    return DistanceUtil.formatKm(km);
   }
 
   @override
@@ -946,6 +981,40 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                     ),
                   ),
                 ),
+                // Distance badge (top right, just below AI badge)
+                if (_distanceLabelFor(profile) != null)
+                  Positioned(
+                    top: 52,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 0.5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.place_outlined,
+                              color: Colors.white, size: 12),
+                          const SizedBox(width: 6),
+                          Text(
+                            _distanceLabelFor(profile)!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 // Profile info (bottom)
                 Positioned(
                   left: 24,

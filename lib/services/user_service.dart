@@ -187,6 +187,27 @@ class UserService {
     }, SetOptions(merge: true));
   }
 
+  /// 現在地（lat/lng）を Firestore に保存
+  /// 起動毎の自動更新 or プロフィール画面の「更新」ボタンから呼ばれる
+  Future<void> updateUserLocation({
+    required double latitude,
+    required double longitude,
+    String? prefecture,
+  }) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    final data = <String, dynamic>{
+      'latitude': latitude,
+      'longitude': longitude,
+      'location_updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+    if (prefecture != null && prefecture.isNotEmpty) {
+      data['prefecture'] = prefecture;
+    }
+    await _users.doc(uid).set(data, SetOptions(merge: true));
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // DISCOVER (スワイプ用ユーザー取得)
   // ═══════════════════════════════════════════════════════════════════════
