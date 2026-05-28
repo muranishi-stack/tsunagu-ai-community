@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../models/connection_category.dart';
-import '../data/sample_data.dart';
 import '../theme/app_theme.dart';
 import '../services/chat_templates.dart';
+import '../services/user_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final Match match;
@@ -14,32 +14,63 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late List<Message> _messages;
   final TextEditingController _controller = TextEditingController();
   bool _showAISuggestions = false;
   late List<String> _aiSuggestions;
+  final _svc = UserService();
+  String _currentUid = '';
+  List<Message> _messages = [];
+  bool _isSending = false;
 
   @override
   void initState() {
     super.initState();
-    _messages = SampleData.getMessages(widget.match.user.id);
-    // カテゴリ別の最適化された会話の口火を取得
+    _currentUid = _svc.currentUid ?? '';
     _aiSuggestions = ChatTemplates.getOpeners(widget.match.user);
+
+    // 開いた瞬間に未読カウントをリセット
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.match.matchId.isNotEmpty && _currentUid.isNotEmpty) {
+        _svc.markChatRead(
+          matchId: widget.match.matchId,
+          currentUid: _currentUid,
+        );
+      }
+    });
   }
 
-  void _sendMessage(String text) {
+  Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
+    if (_isSending) return;
+    if (widget.match.matchId.isEmpty || _currentUid.isEmpty) return;
+
+    _controller.clear();
     setState(() {
-      _messages.add(Message(
-        id: DateTime.now().toString(),
-        senderId: 'me',
-        text: text,
-        timestamp: DateTime.now(),
-        isMe: true,
-      ));
-      _controller.clear();
       _showAISuggestions = false;
+      _isSending = true;
     });
+    try {
+      await _svc.sendMessage(
+        matchId: widget.match.matchId,
+        senderUid: _currentUid,
+        text: text,
+        recipientUids: [widget.match.user.id],
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('送信エラー: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -51,18 +82,82 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  return _buildMessageBubble(_messages[index]);
-                },
-              ),
+              child: widget.match.matchId.isEmpty || _currentUid.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'チャットを開けません',
+                        style: TextStyle(color: AppTheme.grey),
+                      ),
+                    )
+                  : StreamBuilder<List<Message>>(
+                      stream: _svc.watchMessages(
+                          widget.match.matchId, _currentUid),
+                      builder: (context, snap) {
+                        if (snap.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(
+                                  AppTheme.vermillion),
+                            ),
+                          );
+                        }
+                        if (snap.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Text('読込エラー: ${snap.error}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: AppTheme.grey)),
+                            ),
+                          );
+                        }
+                        _messages = snap.data ?? const [];
+                        if (_messages.isEmpty) {
+                          return _buildEmptyChatState();
+                        }
+                        return ListView.builder(
+                          padding:
+                              const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            return _buildMessageBubble(_messages[index]);
+                          },
+                        );
+                      },
+                    ),
             ),
             if (_showAISuggestions) _buildAISuggestionPanel(),
             _buildInputField(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyChatState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline,
+              size: 48, color: AppTheme.lightGrey),
+          const SizedBox(height: 16),
+          Text(
+            '${widget.match.user.name}さんとマッチしました！',
+            style: const TextStyle(
+              color: AppTheme.grey,
+              fontSize: 13,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '最初のメッセージを送ってみましょう',
+            style: TextStyle(color: AppTheme.lightGrey, fontSize: 11),
+          ),
+        ],
       ),
     );
   }
@@ -87,11 +182,14 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             padding: const EdgeInsets.all(1.5),
             child: ClipOval(
-              child: Image.network(
-                widget.match.user.photos.first,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: AppTheme.paleGrey),
-              ),
+              child: widget.match.user.photos.isNotEmpty
+                  ? Image.network(
+                      widget.match.user.photos.first,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Container(color: AppTheme.paleGrey),
+                    )
+                  : Container(color: AppTheme.paleGrey),
             ),
           ),
           const SizedBox(width: 10),
@@ -334,16 +432,25 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => _sendMessage(_controller.text),
+            onTap: _isSending ? null : () => _sendMessage(_controller.text),
             child: Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppTheme.black,
+                color: _isSending ? AppTheme.grey : AppTheme.black,
                 borderRadius: BorderRadius.circular(2),
               ),
-              child: const Icon(Icons.arrow_upward,
-                  color: AppTheme.gold, size: 16),
+              child: _isSending
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation(AppTheme.gold),
+                      ),
+                    )
+                  : const Icon(Icons.arrow_upward,
+                      color: AppTheme.gold, size: 16),
             ),
           ),
         ],

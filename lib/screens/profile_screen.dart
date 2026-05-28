@@ -4,7 +4,9 @@ import '../widgets/tsunagu_logo.dart';
 import '../widgets/category_edit_sheet.dart';
 import '../widgets/subscription_status_card.dart';
 import '../models/connection_category.dart';
+import '../models/user_profile.dart';
 import '../services/user_preferences.dart';
+import '../services/user_service.dart';
 import 'subscription_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,6 +18,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _prefs = UserPreferences();
+  final _svc = UserService();
+  UserProfile? _profile;
+  bool _signingOut = false;
 
   @override
   void initState() {
@@ -31,6 +36,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _onPrefsChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ログアウト'),
+        content: const Text('本当にログアウトしますか？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ログアウト',
+                style: TextStyle(color: AppTheme.vermillion)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _signingOut = true);
+    try {
+      await _svc.signOut();
+      // AuthGateが自動的にLoginScreenに遷移する
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ログアウトに失敗しました: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
   }
 
   @override
@@ -57,7 +97,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: StreamBuilder<UserProfile?>(
+          stream: _svc.watchCurrentUserProfile(),
+          builder: (context, snap) {
+            _profile = snap.data;
+            return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -104,7 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: _signingOut ? null : _confirmLogout,
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppTheme.paleGrey),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -112,14 +156,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    child: const Text(
-                      'LOG OUT',
-                      style: TextStyle(
-                        color: AppTheme.grey,
-                        letterSpacing: 3.0,
-                        fontSize: 12,
-                      ),
-                    ),
+                    child: _signingOut
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation(AppTheme.grey),
+                            ),
+                          )
+                        : const Text(
+                            'LOG OUT',
+                            style: TextStyle(
+                              color: AppTheme.grey,
+                              letterSpacing: 3.0,
+                              fontSize: 12,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -138,12 +192,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 32),
             ],
           ),
+            );
+          },
         ),
       ),
     );
   }
 
   Widget _buildProfileHeader() {
+    // Firestore側のプロフィールを優先、無ければ_prefsをフォールバック
+    final name = _profile?.name ?? _prefs.name;
+    final occupation =
+        (_profile?.occupation.isNotEmpty ?? false)
+            ? _profile!.occupation
+            : _prefs.occupation;
+    final prefecture =
+        (_profile?.prefecture.isNotEmpty ?? false)
+            ? _profile!.prefecture
+            : _prefs.prefecture;
+    final photoUrl = (_profile?.photos.isNotEmpty ?? false)
+        ? _profile!.photos.first
+        : null;
+    final age = _profile?.age;
+
     return Center(
       child: Column(
         children: [
@@ -156,16 +227,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             padding: const EdgeInsets.all(4),
             child: ClipOval(
-              child: Container(
-                color: AppTheme.offWhite,
-                alignment: Alignment.center,
-                child: const TsunaguLogo(size: 48),
-              ),
+              child: photoUrl != null
+                  ? Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppTheme.offWhite,
+                        alignment: Alignment.center,
+                        child: const TsunaguLogo(size: 48),
+                      ),
+                    )
+                  : Container(
+                      color: AppTheme.offWhite,
+                      alignment: Alignment.center,
+                      child: const TsunaguLogo(size: 48),
+                    ),
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            _prefs.name,
+            age != null ? '$name · $age' : name,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w300,
@@ -177,7 +258,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(height: 2, width: 24, color: AppTheme.vermillion),
           const SizedBox(height: 8),
           Text(
-            '${_prefs.occupation} · ${_prefs.prefecture}',
+            occupation.isNotEmpty
+                ? '$occupation · $prefecture'
+                : prefecture,
             style: const TextStyle(
               fontSize: 12,
               color: AppTheme.grey,

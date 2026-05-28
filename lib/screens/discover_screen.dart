@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../models/connection_category.dart';
-import '../data/sample_data.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tsunagu_logo.dart';
 import '../widgets/location_filter_sheet.dart';
 import '../widgets/boost_button.dart';
 import '../services/user_preferences.dart';
 import '../services/ai_matching_service.dart';
+import '../services/user_service.dart';
 import 'profile_detail_screen.dart';
 
 class DiscoverScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ class DiscoverScreen extends StatefulWidget {
 
 class _DiscoverScreenState extends State<DiscoverScreen>
     with TickerProviderStateMixin {
-  late List<UserProfile> _allProfiles;
+  List<UserProfile> _allProfiles = [];
   List<UserProfile> _profiles = [];
   Map<String, int> _aiScores = {}; // userId -> 再計算スコア
   int _currentIndex = 0;
@@ -27,25 +27,61 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   double _dragAngle = 0;
   bool _isDragging = false;
   ConnectionCategory? _selectedCategory; // null = ALL
+  bool _loading = true;
+  String? _loadError;
+  Set<String> _swipedUids = {};
 
   late AnimationController _animController;
   Animation<Offset>? _animation;
   final _prefs = UserPreferences();
+  final _userSvc = UserService();
 
   @override
   void initState() {
     super.initState();
-    _allProfiles = SampleData.getUserProfiles();
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _prefs.addListener(_onPrefsChanged);
-    _applyFilters();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfilesFromFirestore();
+    });
   }
 
   void _onPrefsChanged() {
     if (mounted) _applyFilters();
+  }
+
+  /// Firestoreからユーザー一覧を取得 (release modeでis_seed_data除外)
+  Future<void> _loadProfilesFromFirestore() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final currentUid = _userSvc.currentUid;
+      if (currentUid == null) {
+        throw Exception('ログインが必要です');
+      }
+      // 既にスワイプ済みのユーザーは除外
+      _swipedUids = await _userSvc.getSwipedUids(currentUid);
+      final users = await _userSvc.discoverUsers(
+        currentUid: currentUid,
+        excludeUids: _swipedUids,
+        limit: 100,
+      );
+      setState(() {
+        _allProfiles = users;
+        _loading = false;
+      });
+      _applyFilters();
+    } catch (e) {
+      setState(() {
+        _loadError = 'ユーザー読込エラー: $e';
+        _loading = false;
+      });
+    }
   }
 
   /// カテゴリ・地域フィルター＋AIスコアリングを適用
@@ -143,13 +179,39 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       });
     });
 
-    _animController.forward(from: 0).then((_) {
+    _animController.forward(from: 0).then((_) async {
+      // Firestoreにスワイプ記録 + 相互Like判定
+      String? matchedId;
+      if (_profiles.isNotEmpty) {
+        final swipedUser = _profiles[_currentIndex % _profiles.length];
+        final myUid = _userSvc.currentUid;
+        if (myUid != null) {
+          try {
+            matchedId = await _userSvc.recordSwipe(
+              fromUid: myUid,
+              toUid: swipedUser.id,
+              liked: isLike,
+            );
+            _swipedUids.add(swipedUser.id);
+          } catch (e) {
+            // 記録失敗してもUIは進める
+            debugPrint('recordSwipe error: $e');
+          }
+        }
+      }
+      if (!mounted) return;
       setState(() {
         if (isLike) {
-          _showMatchAnimation();
+          _showMatchAnimation(matchedId: matchedId);
         }
+        // スワイプ済みリストから削除
         if (_profiles.isNotEmpty) {
-          _currentIndex = (_currentIndex + 1) % _profiles.length;
+          _profiles.removeAt(_currentIndex % _profiles.length);
+          if (_profiles.isEmpty) {
+            _currentIndex = 0;
+          } else {
+            _currentIndex %= _profiles.length;
+          }
         }
         _dragOffset = Offset.zero;
         _dragAngle = 0;
@@ -181,35 +243,42 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     });
   }
 
-  void _showMatchAnimation() {
-    if (_profiles.isEmpty) return;
-    final profile = _profiles[_currentIndex % _profiles.length];
-    if (profile.aiMatchScore >= 90) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.black,
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_outline,
-                  color: AppTheme.vermillion, size: 20),
-              const SizedBox(width: 12),
-              const Text(
-                'TSUNAGU - 繋がりました',
-                style: TextStyle(
-                  color: AppTheme.vermillion,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2.0,
-                  fontSize: 13,
-                ),
+  void _showMatchAnimation({String? matchedId}) {
+    // 相互Like成立時 (matchedId != null) は強制的に表示
+    final isMutualMatch = matchedId != null;
+    if (_profiles.isEmpty && !isMutualMatch) return;
+
+    final showAnim = isMutualMatch ||
+        (_profiles.isNotEmpty &&
+            _profiles[_currentIndex % _profiles.length].aiMatchScore >= 90);
+    if (!showAnim) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppTheme.black,
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline,
+                color: AppTheme.vermillion, size: 20),
+            const SizedBox(width: 12),
+            Text(
+              isMutualMatch
+                  ? 'マッチ成立！ - お互いLikeしました'
+                  : 'TSUNAGU - 繋がりました',
+              style: const TextStyle(
+                color: AppTheme.vermillion,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 2.0,
+                fontSize: 13,
               ),
-            ],
-          ),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(24),
+            ),
+          ],
         ),
-      );
-    }
+        duration: Duration(seconds: isMutualMatch ? 3 : 2),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(24),
+      ),
+    );
   }
 
   void _handleActionButton(bool isLike) {
@@ -243,22 +312,33 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: _profiles.isEmpty
-                    ? _buildEmptyState()
-                    : Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (_profiles.length > 1)
-                            _buildCard(
-                              _profiles[
-                                  (_currentIndex + 1) % _profiles.length],
-                              scale: 0.95,
-                              isBackground: true,
-                            ),
-                          _buildSwipeableCard(
-                              _profiles[_currentIndex % _profiles.length], size),
-                        ],
-                      ),
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation(AppTheme.vermillion),
+                        ),
+                      )
+                    : _loadError != null
+                        ? _buildErrorState()
+                        : _profiles.isEmpty
+                            ? _buildEmptyState()
+                            : Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  if (_profiles.length > 1)
+                                    _buildCard(
+                                      _profiles[(_currentIndex + 1) %
+                                          _profiles.length],
+                                      scale: 0.95,
+                                      isBackground: true,
+                                    ),
+                                  _buildSwipeableCard(
+                                      _profiles[
+                                          _currentIndex % _profiles.length],
+                                      size),
+                                ],
+                              ),
               ),
             ),
             _buildActionButtons(),
@@ -316,9 +396,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             color: AppTheme.lightGrey,
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             '該当する人が見つかりません',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppTheme.grey,
               fontSize: 14,
               letterSpacing: 1.0,
@@ -333,6 +413,46 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                 color: AppTheme.vermillion,
                 letterSpacing: 1.5,
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _loadProfilesFromFirestore,
+            icon: const Icon(Icons.refresh, color: AppTheme.vermillion),
+            label: const Text(
+              '再読込',
+              style: TextStyle(
+                color: AppTheme.vermillion,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline,
+              size: 48, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(
+            _loadError ?? '読込エラー',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.grey, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _loadProfilesFromFirestore,
+            icon: const Icon(Icons.refresh),
+            label: const Text('再試行'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.vermillion,
+              foregroundColor: Colors.white,
             ),
           ),
         ],

@@ -4,7 +4,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
-import 'screens/main_screen.dart';
+import 'screens/auth/auth_gate.dart';
 import 'admin/screens/login_screen.dart';
 import 'admin/screens/dashboard_screen.dart';
 import 'admin/screens/users_screen.dart';
@@ -50,7 +50,7 @@ class TsunaguApp extends StatelessWidget {
       title: 'TSUNAGU',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const MainScreen(),
+      home: const AuthGate(),
       routes: {
         '/admin/login': (_) => const AdminLoginScreen(),
         '/admin/dashboard': (_) => const AdminDashboardScreen(),
