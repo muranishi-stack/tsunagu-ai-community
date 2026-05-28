@@ -29,6 +29,7 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
   String? _tempPrefecture;
   String? _tempTrainLine;
   double? _tempMaxDistanceKm;
+  RangeValues _tempAgeRange = const RangeValues(18, 99);
 
   @override
   void initState() {
@@ -36,6 +37,10 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
     _tempPrefecture = _prefs.filterPrefecture;
     _tempTrainLine = _prefs.filterTrainLine;
     _tempMaxDistanceKm = _prefs.filterMaxDistanceKm;
+    _tempAgeRange = RangeValues(
+      _prefs.filterMinAge.toDouble(),
+      _prefs.filterMaxAge.toDouble(),
+    );
   }
 
   @override
@@ -83,6 +88,7 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                         _tempPrefecture = null;
                         _tempTrainLine = null;
                         _tempMaxDistanceKm = null;
+                        _tempAgeRange = const RangeValues(18, 99);
                       });
                     },
                     style: TextButton.styleFrom(
@@ -108,6 +114,8 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildAgeRangeSection(),
+                    const SizedBox(height: 28),
                     _buildDistanceSection(),
                     const SizedBox(height: 28),
                     _buildPrefectureSection(),
@@ -136,6 +144,10 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                     _prefs.setFilterPrefecture(_tempPrefecture);
                     _prefs.setFilterTrainLine(_tempTrainLine);
                     _prefs.setFilterMaxDistanceKm(_tempMaxDistanceKm);
+                    _prefs.setFilterAgeRange(
+                      _tempAgeRange.start.round(),
+                      _tempAgeRange.end.round(),
+                    );
                     Navigator.pop(context, true);
                   },
                   style: ElevatedButton.styleFrom(
@@ -161,6 +173,63 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 年齢フィルター UI (RangeSlider, 18-99)
+  Widget _buildAgeRangeSection() {
+    final start = _tempAgeRange.start.round();
+    final end = _tempAgeRange.end.round();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              '年齢',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.charcoal,
+                letterSpacing: 1.0,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              '$start - $end 歳',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.vermillion,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: AppTheme.vermillion,
+            inactiveTrackColor: AppTheme.paleGrey,
+            thumbColor: AppTheme.vermillion,
+            overlayColor: AppTheme.vermillion.withValues(alpha: 0.15),
+            rangeThumbShape: const RoundRangeSliderThumbShape(
+              enabledThumbRadius: 9,
+            ),
+            trackHeight: 3,
+          ),
+          child: RangeSlider(
+            values: _tempAgeRange,
+            min: 18,
+            max: 99,
+            divisions: 99 - 18,
+            labels: RangeLabels('$start歳', '$end歳'),
+            onChanged: (values) {
+              setState(() => _tempAgeRange = values);
+            },
+          ),
+        ),
+      ],
     );
   }
 

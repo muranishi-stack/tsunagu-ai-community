@@ -40,6 +40,17 @@ class UserPreferences extends ChangeNotifier {
   /// デフォルト 25km (Choice A)
   double? filterMaxDistanceKm = 25.0;
 
+  /// 年齢フィルター: 表示する相手の最小年齢
+  /// デフォルトは自分の年齢 -5 歳（initAgeFilterFromMyAge() で初期化）
+  int filterMinAge = 18;
+
+  /// 年齢フィルター: 表示する相手の最大年齢
+  /// デフォルトは自分の年齢 +5 歳
+  int filterMaxAge = 99;
+
+  /// 年齢フィルターが手動設定されたか（true なら自動初期化をスキップ）
+  bool _ageFilterCustomized = false;
+
   // 自分の現在地 (起動時GPS自動更新で AuthGate から書き込み)
   // Firestore とは独立に、フィルタ計算のためメモリ上にも保持する
   double? myLatitude;
@@ -101,6 +112,9 @@ class UserPreferences extends ChangeNotifier {
     filterPrefecture = null;
     filterTrainLine = null;
     filterMaxDistanceKm = null;
+    filterMinAge = 18;
+    filterMaxAge = 99;
+    _ageFilterCustomized = false;
     notifyListeners();
   }
 
@@ -114,6 +128,29 @@ class UserPreferences extends ChangeNotifier {
     myLongitude = lng;
     notifyListeners();
   }
+
+  /// 年齢フィルタを (min, max) で更新
+  void setFilterAgeRange(int min, int max) {
+    filterMinAge = min.clamp(18, 99);
+    filterMaxAge = max.clamp(18, 99);
+    if (filterMinAge > filterMaxAge) {
+      filterMinAge = filterMaxAge;
+    }
+    _ageFilterCustomized = true;
+    notifyListeners();
+  }
+
+  /// 自分の年齢から ±5 歳のデフォルト範囲を設定する。
+  /// 既にユーザーが手動設定済みなら何もしない。
+  void initAgeFilterFromMyAge(int myAge) {
+    if (_ageFilterCustomized) return;
+    filterMinAge = (myAge - 5).clamp(18, 99);
+    filterMaxAge = (myAge + 5).clamp(18, 99);
+    notifyListeners();
+  }
+
+  bool get hasActiveAgeFilter =>
+      _ageFilterCustomized && (filterMinAge > 18 || filterMaxAge < 99);
 
   bool get hasActiveLocationFilter =>
       filterPrefecture != null ||

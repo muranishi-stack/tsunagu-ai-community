@@ -98,6 +98,10 @@ class AuthGate extends StatelessWidget {
             // 最終アクティブ時刻を更新 (非同期、結果は待たない)
             UserService().touchLastActive();
 
+            // 年齢フィルターの初期化 (自分の年齢 ±5 歳)
+            final myAge = (data?['age'] as num?)?.toInt() ?? 30;
+            UserPreferences().initAgeFilterFromMyAge(myAge);
+
             // 起動時GPS自動更新 (Choice B: 毎回起動時) — 非同期・サイレント
             _attemptStartupLocationUpdate();
 

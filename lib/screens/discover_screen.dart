@@ -124,6 +124,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           .toList();
     }
 
+    // 2.3 年齢フィルター
+    filtered = filtered
+        .where((p) =>
+            p.age >= _prefs.filterMinAge && p.age <= _prefs.filterMaxAge)
+        .toList();
+
     // 2.5 距離フィルター (Choice B: lat/lng 未保存ユーザーは完全非表示)
     final maxKm = _prefs.filterMaxDistanceKm;
     if (maxKm != null &&
@@ -981,40 +987,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                     ),
                   ),
                 ),
-                // Distance badge (top right, just below AI badge)
-                if (_distanceLabelFor(profile) != null)
-                  Positioned(
-                    top: 52,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 0.5),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.place_outlined,
-                              color: Colors.white, size: 12),
-                          const SizedBox(width: 6),
-                          Text(
-                            _distanceLabelFor(profile)!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                // 距離は名前横（A案）に表示するため、右上バッジは削除
                 // Profile info (bottom)
                 Positioned(
                   left: 24,
@@ -1026,13 +999,16 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            profile.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w200,
-                              letterSpacing: 1.5,
+                          Flexible(
+                            child: Text(
+                              profile.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w200,
+                                letterSpacing: 1.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1047,6 +1023,35 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                               ),
                             ),
                           ),
+                          // 距離表示 (A案: 名前横併記)
+                          if (_distanceLabelFor(profile) != null) ...[
+                            const SizedBox(width: 14),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.place,
+                                    size: 14,
+                                    color: Colors.white
+                                        .withValues(alpha: 0.9),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _distanceLabelFor(profile)!,
+                                    style: TextStyle(
+                                      color: Colors.white
+                                          .withValues(alpha: 0.95),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 6),

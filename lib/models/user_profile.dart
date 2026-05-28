@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../data/profile_options.dart';
 import 'connection_category.dart';
 
 /// 性別
@@ -95,6 +96,40 @@ class UserProfile {
   /// 主要沿線（任意）
   final String? trainLine;
 
+  // ============ ライフスタイル項目（タップ選択式） ============
+  /// 飲酒習慣
+  final DrinkingHabit drinking;
+
+  /// 喫煙習慣
+  final SmokingHabit smoking;
+
+  /// 休日の過ごし方スタイル
+  final HolidayStyle holidayStyle;
+
+  /// 休日のアクティビティ（複数選択）
+  final List<String> holidayActivities;
+
+  /// MBTI タイプ（例: "INFJ"）
+  final String? mbti;
+
+  /// 話せる言語（複数選択）
+  final List<String> languages;
+
+  /// 子供の希望
+  final ChildrenPlan childrenPlan;
+
+  /// 結婚観
+  final MarriageView marriageView;
+
+  /// 職業カテゴリ（フリーテキストの occupation と併存）
+  final String? jobCategory;
+
+  /// 学歴（タップ選択。フリーテキストの education と併存）
+  final EducationLevel educationLevel;
+
+  /// 身長 (cm) — スライダー入力
+  final int? heightCm;
+
   // ============ システム項目 ============
   /// シードデータフラグ（true = 開発用ダミー）
   final bool isSeedData;
@@ -133,6 +168,18 @@ class UserProfile {
     this.openTo = const [],
     required this.primaryCategory,
     this.trainLine,
+    // ライフスタイル項目（全てデフォルト未設定）
+    this.drinking = DrinkingHabit.unspecified,
+    this.smoking = SmokingHabit.unspecified,
+    this.holidayStyle = HolidayStyle.unspecified,
+    this.holidayActivities = const [],
+    this.mbti,
+    this.languages = const [],
+    this.childrenPlan = ChildrenPlan.unspecified,
+    this.marriageView = MarriageView.unspecified,
+    this.jobCategory,
+    this.educationLevel = EducationLevel.unspecified,
+    this.heightCm,
     this.isSeedData = false,
     this.email = '',
     this.createdAt,
@@ -198,6 +245,14 @@ class UserProfile {
       return null;
     }
 
+    // ライフスタイル: List<String> 共通パース
+    List<String> parseStringList(dynamic raw) {
+      if (raw is List) {
+        return raw.map((e) => e.toString()).toList();
+      }
+      return const [];
+    }
+
     return UserProfile(
       id: docId,
       name: (data['name'] as String?) ?? 'No Name',
@@ -220,6 +275,19 @@ class UserProfile {
       openTo: openTo,
       primaryCategory: primaryCat,
       trainLine: data['train_line'] as String?,
+      // ライフスタイル項目
+      drinking: DrinkingHabit.fromString(data['drinking'] as String?),
+      smoking: SmokingHabit.fromString(data['smoking'] as String?),
+      holidayStyle: HolidayStyle.fromString(data['holiday_style'] as String?),
+      holidayActivities: parseStringList(data['holiday_activities']),
+      mbti: data['mbti'] as String?,
+      languages: parseStringList(data['languages']),
+      childrenPlan: ChildrenPlan.fromString(data['children_plan'] as String?),
+      marriageView: MarriageView.fromString(data['marriage_view'] as String?),
+      jobCategory: data['job_category'] as String?,
+      educationLevel:
+          EducationLevel.fromString(data['education_level'] as String?),
+      heightCm: (data['height_cm'] as num?)?.toInt(),
       isSeedData: (data['is_seed_data'] as bool?) ?? false,
       email: (data['email'] as String?) ?? '',
       createdAt: toDt(data['created_at']),
@@ -252,6 +320,18 @@ class UserProfile {
       'open_to': openTo.map((c) => c.name).toList(),
       'primary_category': primaryCategory.name,
       if (trainLine != null) 'train_line': trainLine,
+      // ライフスタイル項目
+      'drinking': drinking.name,
+      'smoking': smoking.name,
+      'holiday_style': holidayStyle.name,
+      'holiday_activities': holidayActivities,
+      if (mbti != null) 'mbti': mbti,
+      'languages': languages,
+      'children_plan': childrenPlan.name,
+      'marriage_view': marriageView.name,
+      if (jobCategory != null) 'job_category': jobCategory,
+      'education_level': educationLevel.name,
+      if (heightCm != null) 'height_cm': heightCm,
       'is_seed_data': isSeedData,
       'email': email,
       if (createdAt != null) 'created_at': Timestamp.fromDate(createdAt!)
@@ -284,6 +364,17 @@ class UserProfile {
     List<ConnectionCategory>? openTo,
     ConnectionCategory? primaryCategory,
     String? trainLine,
+    DrinkingHabit? drinking,
+    SmokingHabit? smoking,
+    HolidayStyle? holidayStyle,
+    List<String>? holidayActivities,
+    String? mbti,
+    List<String>? languages,
+    ChildrenPlan? childrenPlan,
+    MarriageView? marriageView,
+    String? jobCategory,
+    EducationLevel? educationLevel,
+    int? heightCm,
     bool? isSeedData,
     String? email,
     DateTime? createdAt,
@@ -312,6 +403,17 @@ class UserProfile {
       openTo: openTo ?? this.openTo,
       primaryCategory: primaryCategory ?? this.primaryCategory,
       trainLine: trainLine ?? this.trainLine,
+      drinking: drinking ?? this.drinking,
+      smoking: smoking ?? this.smoking,
+      holidayStyle: holidayStyle ?? this.holidayStyle,
+      holidayActivities: holidayActivities ?? this.holidayActivities,
+      mbti: mbti ?? this.mbti,
+      languages: languages ?? this.languages,
+      childrenPlan: childrenPlan ?? this.childrenPlan,
+      marriageView: marriageView ?? this.marriageView,
+      jobCategory: jobCategory ?? this.jobCategory,
+      educationLevel: educationLevel ?? this.educationLevel,
+      heightCm: heightCm ?? this.heightCm,
       isSeedData: isSeedData ?? this.isSeedData,
       email: email ?? this.email,
       createdAt: createdAt ?? this.createdAt,

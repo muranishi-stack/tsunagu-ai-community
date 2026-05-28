@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/profile_options.dart';
 import '../models/user_profile.dart';
 import '../services/user_preferences.dart';
 import '../theme/app_theme.dart';
@@ -118,15 +119,83 @@ class ProfileDetailScreen extends StatelessWidget {
                   const SizedBox(height: 32),
                   _buildSectionHeader('DETAILS'),
                   const SizedBox(height: 16),
-                  _buildDetailRow(Icons.work_outline, profile.occupation),
-                  _buildDetailRow(Icons.school_outlined, profile.education),
+                  _buildDetailRow(
+                    Icons.work_outline,
+                    profile.jobCategory ?? profile.occupation,
+                  ),
+                  _buildDetailRow(
+                    Icons.school_outlined,
+                    profile.educationLevel != EducationLevel.unspecified
+                        ? profile.educationLevel.label
+                        : profile.education,
+                  ),
                   _buildDetailRow(Icons.location_on_outlined, profile.location),
                   if (_distanceLabel() != null)
                     _buildDetailRow(
                       Icons.place_outlined,
                       'あなたから ${_distanceLabel()}',
                     ),
-                  _buildDetailRow(Icons.straighten, profile.height),
+                  _buildDetailRow(
+                    Icons.straighten,
+                    profile.heightCm != null
+                        ? '${profile.heightCm}cm'
+                        : profile.height,
+                  ),
+                  if (profile.mbti != null && profile.mbti!.isNotEmpty)
+                    _buildDetailRow(
+                      Icons.psychology_outlined,
+                      MbtiTypes.labelFor(profile.mbti),
+                    ),
+
+                  // ─── LIFESTYLE ───
+                  if (_hasLifestyle()) ...[
+                    const SizedBox(height: 32),
+                    _buildSectionHeader('LIFESTYLE'),
+                    const SizedBox(height: 16),
+                    if (profile.drinking != DrinkingHabit.unspecified)
+                      _buildDetailRow(
+                        Icons.local_bar_outlined,
+                        '飲酒: ${profile.drinking.label}',
+                      ),
+                    if (profile.smoking != SmokingHabit.unspecified)
+                      _buildDetailRow(
+                        Icons.smoke_free_outlined,
+                        '喫煙: ${profile.smoking.label}',
+                      ),
+                    if (profile.holidayStyle != HolidayStyle.unspecified)
+                      _buildDetailRow(
+                        Icons.weekend_outlined,
+                        '休日: ${profile.holidayStyle.label}',
+                      ),
+                    if (profile.holidayActivities.isNotEmpty)
+                      _buildDetailRow(
+                        Icons.local_activity_outlined,
+                        profile.holidayActivities.join(' · '),
+                      ),
+                    if (profile.languages.isNotEmpty)
+                      _buildDetailRow(
+                        Icons.translate_outlined,
+                        profile.languages.join(' · '),
+                      ),
+                  ],
+
+                  // ─── VALUES ───
+                  if (_hasValues()) ...[
+                    const SizedBox(height: 32),
+                    _buildSectionHeader('VALUES'),
+                    const SizedBox(height: 16),
+                    if (profile.childrenPlan != ChildrenPlan.unspecified)
+                      _buildDetailRow(
+                        Icons.child_care_outlined,
+                        '子供: ${profile.childrenPlan.label}',
+                      ),
+                    if (profile.marriageView != MarriageView.unspecified)
+                      _buildDetailRow(
+                        Icons.favorite_border,
+                        '結婚観: ${profile.marriageView.label}',
+                      ),
+                  ],
+
                   const SizedBox(height: 32),
                   _buildSectionHeader('INTERESTS'),
                   const SizedBox(height: 16),
@@ -292,6 +361,21 @@ class ProfileDetailScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// LIFESTYLE セクションに表示する内容があるか
+  bool _hasLifestyle() {
+    return profile.drinking != DrinkingHabit.unspecified ||
+        profile.smoking != SmokingHabit.unspecified ||
+        profile.holidayStyle != HolidayStyle.unspecified ||
+        profile.holidayActivities.isNotEmpty ||
+        profile.languages.isNotEmpty;
+  }
+
+  /// VALUES セクションに表示する内容があるか
+  bool _hasValues() {
+    return profile.childrenPlan != ChildrenPlan.unspecified ||
+        profile.marriageView != MarriageView.unspecified;
   }
 
   /// 自分との距離を表示用文字列で返す（lat/lng 両方そろっている時のみ）
