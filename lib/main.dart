@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'screens/main_screen.dart';
 import 'admin/screens/login_screen.dart';
@@ -14,10 +17,27 @@ import 'admin/screens/settings_screen.dart';
 import 'admin/screens/ai_moderation_screen.dart';
 import 'admin/screens/data_sources_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Use hash-based URL strategy so routes like /#/admin/login work everywhere
   // without requiring server-side SPA fallback configuration.
   setUrlStrategy(const HashUrlStrategy());
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    if (kDebugMode) {
+      debugPrint('✅ Firebase initialized successfully');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('❌ Firebase initialization error: $e');
+    }
+  }
+
   runApp(const TsunaguApp());
 }
 

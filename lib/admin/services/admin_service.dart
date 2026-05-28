@@ -4,12 +4,22 @@ import 'package:flutter/foundation.dart';
 import '../../models/connection_category.dart';
 import '../../models/subscription.dart';
 import '../models/admin_models.dart';
+import 'auth_service.dart';
+import 'firestore_service.dart';
 
-/// 管理画面のデータと認証を扱うサービス（モック実装）
+/// 管理画面のデータと認証を扱うサービス
+///
+/// Phase 1 アーキテクチャ:
+/// - ログイン: Firebase Auth (フォールバック: ローカル admin@tsunagu.jp)
+/// - データ: 起動時に Firestore からシード → 失敗時はモックデータにフォールバック
+/// - 書き込み: Firestore + ローカルメモリの両方を更新 (Optimistic UI)
 class AdminService extends ChangeNotifier {
   static final AdminService _instance = AdminService._internal();
   factory AdminService() => _instance;
   AdminService._internal();
+
+  final AuthService _auth = AuthService();
+  final FirestoreService _firestore = FirestoreService();
 
   AdminAccount? _currentAdmin;
   final List<AdminUser> _users = [];
@@ -19,6 +29,13 @@ class AdminService extends ChangeNotifier {
   final List<AiModerationFlag> _aiFlags = [];
   final List<DataSourceIntegration> _dataSources = [];
   bool _dataGenerated = false;
+
+  // Firestore 同期状態
+  bool _firestoreLoaded = false;
+  bool _firestoreReachable = false;
+  bool get firestoreReachable => _firestoreReachable;
+  String _dataSourceLabel = 'mock'; // 'firestore' or 'mock'
+  String get dataSourceLabel => _dataSourceLabel;
 
   // AI スキャナー状態
   Timer? _aiScannerTimer;
@@ -32,28 +49,153 @@ class AdminService extends ChangeNotifier {
   AdminAccount? get currentAdmin => _currentAdmin;
   bool get isLoggedIn => _currentAdmin != null;
 
-  /// モックログイン（admin@tsunagu.jp / admin1234）
+  /// ログイン: Firebase Auth → 失敗時 admin@tsunagu.jp / admin1234 フォールバック
   Future<bool> login(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (email == 'admin@tsunagu.jp' && password == 'admin1234') {
-      _currentAdmin = AdminAccount(
-        id: 'admin_001',
-        name: 'のりあつ',
-        email: email,
-        role: AdminRole.superAdmin,
-        lastLoginAt: DateTime.now(),
-      );
-      _generateMockData();
-      notifyListeners();
-      return true;
+    final err = await _auth.login(email, password);
+    if (err != null) {
+      return false;
     }
-    return false;
+
+    // 認証成功 → 管理者アカウントを設定
+    _currentAdmin = AdminAccount(
+      id: _auth.currentUser?.uid ?? 'admin_bootstrap',
+      name: _auth.currentUser?.displayName ?? 'のりあつ',
+      email: email,
+      role: AdminRole.superAdmin,
+      lastLoginAt: DateTime.now(),
+    );
+
+    // データを読み込む (Firestore → フォールバック)
+    await _bootstrapData();
+
+    notifyListeners();
+    return true;
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _auth.signOut();
     _currentAdmin = null;
     stopAiScanner();
     notifyListeners();
+  }
+
+  /// データブートストラップ:
+  /// 1. Firestore が到達可能かチェック
+  /// 2. 到達可能なら Firestore からユーザー・通報・取引・AIフラグを読み込み
+  /// 3. データが空 or 失敗の場合はモックデータを生成
+  Future<void> _bootstrapData() async {
+    if (_firestoreLoaded) return;
+    _firestoreLoaded = true;
+
+    try {
+      _firestoreReachable = await _firestore.isReachable();
+      if (kDebugMode) {
+        debugPrint(
+            'AdminService: Firestore reachable = $_firestoreReachable');
+      }
+    } catch (e) {
+      _firestoreReachable = false;
+    }
+
+    if (_firestoreReachable) {
+      // Firestoreから並列ロード
+      try {
+        final results = await Future.wait([
+          _firestore.fetchAllUsers(limit: 500),
+          _firestore.fetchAllReports(limit: 100),
+          _firestore.fetchAllTransactions(limit: 500),
+          _firestore.fetchAllAiFlags(limit: 100),
+        ]);
+
+        final fsUsers = results[0] as List<AdminUser>;
+        final fsReports = results[1] as List<Report>;
+        final fsTx = results[2] as List<RevenueRecord>;
+        final fsFlags = results[3] as List<AiModerationFlag>;
+
+        if (kDebugMode) {
+          debugPrint(
+              'AdminService: Firestore loaded - users=${fsUsers.length}, '
+              'reports=${fsReports.length}, tx=${fsTx.length}, '
+              'flags=${fsFlags.length}');
+        }
+
+        if (fsUsers.isNotEmpty) {
+          _users.clear();
+          _users.addAll(fsUsers);
+          _reports
+            ..clear()
+            ..addAll(fsReports);
+          _revenues
+            ..clear()
+            ..addAll(fsTx);
+          _aiFlags
+            ..clear()
+            ..addAll(fsFlags);
+          // Sort by date (newest first)
+          _reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          _revenues.sort((a, b) => b.date.compareTo(a.date));
+          // Initialize the lighter-weight in-memory only structures
+          _seedAnnouncementsIfEmpty();
+          _seedDataSourcesIfEmpty();
+          _dataGenerated = true;
+          _dataSourceLabel = 'firestore';
+          if (kDebugMode) {
+            debugPrint('✅ AdminService: Loaded from Firestore');
+          }
+          return;
+        } else {
+          if (kDebugMode) {
+            debugPrint(
+                '⚠️ AdminService: Firestore empty, falling back to mock data');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('AdminService: Firestore load error: $e');
+        }
+      }
+    }
+
+    // フォールバック: モックデータ生成
+    _generateMockData();
+    _dataSourceLabel = 'mock';
+    if (kDebugMode) {
+      debugPrint('AdminService: Using mock data');
+    }
+  }
+
+  /// 強制的に Firestore からリフレッシュ
+  Future<void> refreshFromFirestore() async {
+    _firestoreLoaded = false;
+    await _bootstrapData();
+    notifyListeners();
+  }
+
+  void _seedAnnouncementsIfEmpty() {
+    if (_announcements.isNotEmpty) return;
+    _announcements.addAll([
+      AdminAnnouncement(
+        id: 'ann_001',
+        title: '春のキャンペーン開始のお知らせ',
+        body: '4月限定で全プラン20%OFFのキャンペーンを実施します。',
+        publishedAt: DateTime.now().subtract(const Duration(days: 3)),
+        status: AnnouncementStatus.published,
+        reachedUsers: 892,
+      ),
+      AdminAnnouncement(
+        id: 'ann_002',
+        title: 'メンテナンスのお知らせ',
+        body: '4月15日 午前2:00〜4:00 サーバーメンテナンスを実施します。',
+        publishedAt: DateTime.now().subtract(const Duration(days: 10)),
+        status: AnnouncementStatus.published,
+        reachedUsers: 1158,
+      ),
+    ]);
+  }
+
+  void _seedDataSourcesIfEmpty() {
+    if (_dataSources.isNotEmpty) return;
+    _seedDataSources();
   }
 
   // ===== データアクセス =====
@@ -88,7 +230,7 @@ class AdminService extends ChangeNotifier {
   // ===== KPI =====
 
   DashboardKPI get kpi {
-    if (!_dataGenerated) _generateMockData();
+    if (!_dataGenerated && _users.isEmpty) _generateMockData();
     final activeUsers =
         _users.where((u) => u.status == UserStatus.active).length;
     final monthlyRevenue = _revenues
@@ -234,6 +376,10 @@ class AdminService extends ChangeNotifier {
         avatarUrl: u.avatarUrl,
       );
       notifyListeners();
+      // Firestore に同期 (fire-and-forget)
+      if (_firestoreReachable) {
+        _firestore.updateUserStatus(userId, UserStatus.suspended);
+      }
     }
   }
 
@@ -257,6 +403,9 @@ class AdminService extends ChangeNotifier {
         avatarUrl: u.avatarUrl,
       );
       notifyListeners();
+      if (_firestoreReachable) {
+        _firestore.updateUserStatus(userId, UserStatus.active);
+      }
     }
   }
 
@@ -276,6 +425,9 @@ class AdminService extends ChangeNotifier {
         status: newStatus,
       );
       notifyListeners();
+      if (_firestoreReachable) {
+        _firestore.updateReportStatus(reportId, newStatus);
+      }
     }
   }
 
@@ -302,25 +454,26 @@ class AdminService extends ChangeNotifier {
     required String title,
     required String body,
   }) {
-    _announcements.insert(
-      0,
-      AdminAnnouncement(
-        id: 'ann_${DateTime.now().millisecondsSinceEpoch}',
-        title: title,
-        body: body,
-        publishedAt: DateTime.now(),
-        status: AnnouncementStatus.published,
-        reachedUsers: _users.where((u) => u.status == UserStatus.active).length,
-      ),
+    final ann = AdminAnnouncement(
+      id: 'ann_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      body: body,
+      publishedAt: DateTime.now(),
+      status: AnnouncementStatus.published,
+      reachedUsers: _users.where((u) => u.status == UserStatus.active).length,
     );
+    _announcements.insert(0, ann);
     notifyListeners();
+    if (_firestoreReachable) {
+      _firestore.publishAnnouncement(ann);
+    }
   }
 
   // ===== アクティビティフィード =====
 
   /// ダッシュボードに表示するリアルタイム風アクティビティイベント
   List<ActivityEvent> get recentActivities {
-    if (!_dataGenerated) _generateMockData();
+    if (!_dataGenerated && _users.isEmpty) _generateMockData();
     final events = <ActivityEvent>[];
 
     // 新規登録 (直近の登録ユーザー)
@@ -555,6 +708,9 @@ class AdminService extends ChangeNotifier {
         break;
     }
     notifyListeners();
+    if (_firestoreReachable) {
+      _firestore.upsertAiFlag(_aiFlags[idx]);
+    }
   }
 
   /// 誤検知として却下
@@ -567,6 +723,9 @@ class AdminService extends ChangeNotifier {
       reviewedAt: DateTime.now(),
     );
     notifyListeners();
+    if (_firestoreReachable) {
+      _firestore.upsertAiFlag(_aiFlags[idx]);
+    }
   }
 
   // ===== データソース連携 =====

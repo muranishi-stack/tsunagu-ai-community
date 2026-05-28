@@ -366,8 +366,9 @@ class _Sidebar extends StatelessWidget {
           IconButton(
             tooltip: 'サインアウト',
             icon: const Icon(Icons.logout, color: Colors.white60, size: 16),
-            onPressed: () {
-              AdminService().logout();
+            onPressed: () async {
+              await AdminService().logout();
+              if (!context.mounted) return;
               Navigator.pushNamedAndRemoveUntil(
                   context, '/admin/login', (_) => false);
             },
