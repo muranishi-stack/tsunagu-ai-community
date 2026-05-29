@@ -26,6 +26,14 @@ const LINE_CHANNEL_ID = defineString("LINE_CHANNEL_ID", {
 });
 const LINE_CHANNEL_SECRET = defineSecret("LINE_CHANNEL_SECRET");
 
+// Gemini API キー（Secret Manager 管理。クライアントには出さない）
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/" +
+  GEMINI_MODEL +
+  ":generateContent";
+
 // LINE 公式エンドポイント
 const LINE_TOKEN_URL = "https://api.line.me/oauth2/v2.1/token";
 const LINE_PROFILE_URL = "https://api.line.me/v2/profile";
@@ -194,6 +202,151 @@ exports.lineAuth = onRequest(
     } catch (err) {
       logger.error("lineAuth unhandled error", err);
       res.status(500).json({ error: "Internal Server Error", detail: err.message });
+    }
+  }
+);
+
+/**
+ * AIプロフィール最適化 (Gemini)
+ *
+ * リクエスト (POST application/json, Authorization: Bearer <Firebase IDトークン>):
+ *   {
+ *     "name": "...", "age": 32, "occupation": "...",
+ *     "bio": "...", "interests": ["...","..."],
+ *     "primaryCategory": "business"
+ *   }
+ * レスポンス:
+ *   200 {
+ *     "improvedBio": "...",       // 改善後の自己紹介文（そのまま使える）
+ *     "tips": ["...", "..."],     // 改善ポイント
+ *     "suggestedInterests": ["..."]
+ *   }
+ *
+ * セキュリティ:
+ *   - 呼び出しには有効な Firebase ID トークンが必須（verifyIdToken）
+ *   - GEMINI_API_KEY は Secret Manager から取得しクライアントには出さない
+ */
+exports.optimizeProfile = onRequest(
+  {
+    region: "asia-northeast1",
+    secrets: [GEMINI_API_KEY],
+    cors: true,
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  async (req, res) => {
+    setCors(res);
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method Not Allowed" });
+      return;
+    }
+
+    // ===== 認証チェック =====
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : null;
+    if (!idToken) {
+      res.status(401).json({ error: "認証が必要です" });
+      return;
+    }
+    try {
+      await admin.auth().verifyIdToken(idToken);
+    } catch (e) {
+      logger.warn("optimizeProfile: invalid ID token", e.message);
+      res.status(401).json({ error: "認証トークンが無効です" });
+      return;
+    }
+
+    try {
+      const {
+        name = "",
+        age = "",
+        occupation = "",
+        bio = "",
+        interests = [],
+        primaryCategory = "",
+      } = req.body || {};
+
+      const categoryLabels = {
+        romance: "恋愛",
+        friend: "友達",
+        business: "仕事",
+        learning: "学び",
+        hobby: "趣味",
+      };
+      const categoryJa = categoryLabels[primaryCategory] || primaryCategory;
+
+      const prompt = [
+        "あなたは日本のマルチパーパス・コミュニケーションアプリ「TSUNAGU」の",
+        "プロフィール最適化アシスタントです。以下のユーザー情報をもとに、",
+        "魅力的で誠実、かつ読みやすい自己紹介文に改善してください。",
+        "誇張・虚偽・不適切表現は避け、120〜200字程度の日本語にしてください。",
+        "",
+        `主な目的: ${categoryJa}`,
+        `ニックネーム: ${name}`,
+        `年齢: ${age}`,
+        `職業: ${occupation}`,
+        `興味: ${Array.isArray(interests) ? interests.join("、") : interests}`,
+        `現在の自己紹介: ${bio || "(未記入)"}`,
+        "",
+        "次の JSON 形式のみで回答してください（前後に説明文やコードブロックは不要）:",
+        '{"improvedBio":"改善後の自己紹介文","tips":["改善ポイント1","改善ポイント2","改善ポイント3"],"suggestedInterests":["追加候補の興味1","興味2"]}',
+      ].join("\n");
+
+      let geminiResp;
+      try {
+        geminiResp = await axios.post(
+          `${GEMINI_URL}?key=${GEMINI_API_KEY.value()}`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              responseMimeType: "application/json",
+            },
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 20000,
+          }
+        );
+      } catch (e) {
+        const detail = e.response?.data || e.message;
+        logger.error("Gemini API call failed", detail);
+        res.status(502).json({
+          error: "AI生成に失敗しました",
+          detail: typeof detail === "string" ? detail : JSON.stringify(detail),
+        });
+        return;
+      }
+
+      const text =
+        geminiResp.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (_) {
+        // JSON でない場合は本文をそのまま improvedBio に
+        parsed = { improvedBio: text.trim(), tips: [], suggestedInterests: [] };
+      }
+
+      res.status(200).json({
+        improvedBio: parsed.improvedBio || "",
+        tips: Array.isArray(parsed.tips) ? parsed.tips : [],
+        suggestedInterests: Array.isArray(parsed.suggestedInterests)
+          ? parsed.suggestedInterests
+          : [],
+      });
+    } catch (err) {
+      logger.error("optimizeProfile unhandled error", err);
+      res
+        .status(500)
+        .json({ error: "Internal Server Error", detail: err.message });
     }
   }
 );

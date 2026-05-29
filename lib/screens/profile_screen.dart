@@ -13,6 +13,7 @@ import 'subscription_screen.dart';
 import 'profile_edit_screen.dart';
 import 'photo_manager_screen.dart';
 import 'ai_assistant_screen.dart';
+import 'ai_profile_optimize_screen.dart';
 import 'settings/matching_settings_screen.dart';
 import 'settings/notification_settings_screen.dart';
 import 'settings/help_screen.dart';
@@ -239,8 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildMenuSection('AI FEATURES', [
                 _MenuItem(Icons.auto_awesome, 'AIプロフィール最適化',
                     isAccent: true,
-                    onTap: () => _push(const AIAssistantScreen(
-                        initialPrompt: 'プロフィールを改善したい'))),
+                    onTap: () => _push(const AiProfileOptimizeScreen())),
                 _MenuItem(Icons.psychology_outlined, '相性診断履歴',
                     onTap: () => _push(const AIAssistantScreen(
                         initialPrompt: '相性の良い相手の特徴を教えて'))),
