@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/subscription.dart';
 import '../models/connection_category.dart';
 
@@ -125,6 +126,52 @@ class SubscriptionService extends ChangeNotifier {
   void cancelSubscription() {
     _activeSubscription = null;
     notifyListeners();
+  }
+
+  // ===== AIスコアオプション（月額580円） =====
+  // レコメンド（本日のAI TOP10）と AIマッチ度表示を解放する有料アドオン。
+  // 現状は SharedPreferences 永続のモック。将来 IAP と連携する。
+
+  static const int aiScorePriceJpy = 580;
+  static const _kAiScoreExpiry = 'sub_ai_score_expiry';
+  DateTime? _aiScoreExpiry;
+
+  /// AIスコアオプションが有効か
+  bool get hasAiScoreOption =>
+      _aiScoreExpiry != null && DateTime.now().isBefore(_aiScoreExpiry!);
+
+  DateTime? get aiScoreExpiry => _aiScoreExpiry;
+
+  /// 起動時に永続化された状態を復元
+  Future<void> init() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final ms = p.getInt(_kAiScoreExpiry);
+      if (ms != null) {
+        _aiScoreExpiry = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// AIスコアオプションを購入（30日間有効）
+  Future<void> subscribeAiScore() async {
+    _aiScoreExpiry = DateTime.now().add(const Duration(days: 30));
+    notifyListeners();
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setInt(_kAiScoreExpiry, _aiScoreExpiry!.millisecondsSinceEpoch);
+    } catch (_) {}
+  }
+
+  /// AIスコアオプションを解約
+  Future<void> cancelAiScore() async {
+    _aiScoreExpiry = null;
+    notifyListeners();
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kAiScoreExpiry);
+    } catch (_) {}
   }
 
   // ===== ヘルパー =====

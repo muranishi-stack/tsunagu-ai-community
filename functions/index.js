@@ -367,6 +367,196 @@ exports.optimizeProfile = onRequest(
 );
 
 /**
+ * 本日のAIレコメンド TOP10 (Gemini)
+ *
+ * リクエスト (POST, Authorization: Bearer <Firebase IDトークン>):
+ *   {
+ *     "self": { "age":32, "occupation":"...", "interests":[...],
+ *               "primaryCategory":"business", "bio":"..." },
+ *     "candidates": [
+ *        { "id":"usr_x", "name":"...", "age":29, "category":"business",
+ *          "interests":[...], "bio":"...", "prefecture":"東京都" }, ...
+ *     ]
+ *   }
+ * レスポンス:
+ *   200 { "date":"2026-05-30", "items":[ {"id","score","reason"} x最大10 ], "cached":bool }
+ *
+ * コスト対策:
+ *   - 1日1回だけ Gemini を呼ぶ。結果は users/{uid}/ai_recommendations/{YYYY-MM-DD}
+ *     に admin SDK でキャッシュ。同日中の再呼び出しはキャッシュを返す。
+ */
+exports.recommendTop = onRequest(
+  {
+    region: "asia-northeast1",
+    secrets: [GEMINI_API_KEY],
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (req, res) => {
+    setCors(res);
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method Not Allowed" });
+      return;
+    }
+
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : null;
+    if (!idToken) {
+      res.status(401).json({ error: "認証が必要です" });
+      return;
+    }
+    let uid;
+    try {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      uid = decoded.uid;
+    } catch (e) {
+      res.status(401).json({ error: "認証トークンが無効です" });
+      return;
+    }
+
+    // 日付キー（JST）
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+    const dateKey = jst.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const cacheRef = admin
+      .firestore()
+      .collection("users")
+      .doc(uid)
+      .collection("ai_recommendations")
+      .doc(dateKey);
+
+    // ===== キャッシュ確認 =====
+    try {
+      const cached = await cacheRef.get();
+      if (cached.exists) {
+        const data = cached.data();
+        res.status(200).json({
+          date: dateKey,
+          items: data.items || [],
+          cached: true,
+        });
+        return;
+      }
+    } catch (e) {
+      logger.warn("recommendTop cache read failed", e.message);
+    }
+
+    try {
+      const { self = {}, candidates = [] } = req.body || {};
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        res.status(400).json({ error: "候補がありません" });
+        return;
+      }
+
+      const categoryLabels = {
+        romance: "恋愛",
+        friend: "友達",
+        business: "仕事",
+        learning: "学び",
+        hobby: "趣味",
+      };
+      const selfCat = categoryLabels[self.primaryCategory] || self.primaryCategory || "";
+
+      const candidateLines = candidates.slice(0, 30).map((c) => {
+        const cat = categoryLabels[c.category] || c.category || "";
+        const interests = Array.isArray(c.interests)
+          ? c.interests.join("、")
+          : c.interests || "";
+        return `- id:${c.id} | ${c.name}(${c.age}) | カテゴリ:${cat} | 地域:${c.prefecture || ""} | 興味:${interests} | 自己紹介:${(c.bio || "").slice(0, 80)}`;
+      });
+
+      const prompt = [
+        "あなたは日本のコミュニケーションアプリ「TSUNAGU」のAIマッチングエンジンです。",
+        "以下の『あなた（利用者本人）』の情報と、候補者リストをもとに、",
+        "相性が高いと判断できる相手を最大10人選び、0〜100のマッチ度スコアと、",
+        "30字以内の簡潔な理由を付けてください。価値観・興味・目的・年齢・地域の",
+        "相性を総合的に評価します。スコアが高い順に並べてください。",
+        "",
+        `# あなた`,
+        `主な目的:${selfCat} / 年齢:${self.age || ""} / 職業:${self.occupation || ""}`,
+        `興味:${Array.isArray(self.interests) ? self.interests.join("、") : self.interests || ""}`,
+        `自己紹介:${(self.bio || "").slice(0, 120)}`,
+        "",
+        `# 候補者`,
+        ...candidateLines,
+        "",
+        "次のJSON形式のみで回答（説明やコードブロックは不要）:",
+        '{"items":[{"id":"候補者id","score":整数0-100,"reason":"30字以内の理由"}]}',
+      ].join("\n");
+
+      let geminiResp;
+      try {
+        geminiResp = await axios.post(
+          `${GEMINI_URL}?key=${GEMINI_API_KEY.value()}`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.4,
+              responseMimeType: "application/json",
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          },
+          { headers: { "Content-Type": "application/json" }, timeout: 45000 }
+        );
+      } catch (e) {
+        const detail = e.response?.data || e.message;
+        const status = e.response?.status;
+        logger.error("Gemini recommend failed", detail);
+        let msg = "AIレコメンド生成に失敗しました";
+        if (status === 429) msg = "AIの利用上限に達しました。時間をおいてお試しください。";
+        res.status(502).json({ error: msg });
+        return;
+      }
+
+      const text =
+        geminiResp.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let items = [];
+      try {
+        const parsed = JSON.parse(text);
+        items = Array.isArray(parsed.items) ? parsed.items : [];
+      } catch (_) {
+        items = [];
+      }
+      // 正規化 + 上位10件
+      items = items
+        .filter((i) => i && i.id)
+        .map((i) => ({
+          id: String(i.id),
+          score: Math.max(0, Math.min(100, parseInt(i.score, 10) || 0)),
+          reason: String(i.reason || "").slice(0, 40),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+      // キャッシュ書き込み（admin SDK）
+      try {
+        await cacheRef.set({
+          items,
+          created_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        logger.warn("recommendTop cache write failed", e.message);
+      }
+
+      res.status(200).json({ date: dateKey, items, cached: false });
+    } catch (err) {
+      logger.error("recommendTop unhandled error", err);
+      res
+        .status(500)
+        .json({ error: "Internal Server Error", detail: err.message });
+    }
+  }
+);
+
+/**
  * ヘルスチェック用エンドポイント（デバッグ用）
  */
 exports.ping = onRequest(

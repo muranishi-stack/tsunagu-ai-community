@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'discover_screen.dart';
+import 'recommend_screen.dart';
 import 'action_screen.dart';
 import 'matches_screen.dart';
 import 'profile_screen.dart';
@@ -17,6 +18,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = const [
     DiscoverScreen(),
+    RecommendScreen(),
     ActionScreen(),
     MatchesScreen(),
     ProfileScreen(),
@@ -39,12 +41,14 @@ class _MainScreenState extends State<MainScreen> {
             child: Row(
               children: [
                 _buildNavItem(0, Icons.search, Icons.search, 'さがす'),
+                _buildNavItem(1, Icons.auto_awesome_outlined,
+                    Icons.auto_awesome, 'レコメンド'),
                 _buildNavItem(
-                    1, Icons.bolt_outlined, Icons.bolt, 'アクション'),
-                _buildNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble,
+                    2, Icons.bolt_outlined, Icons.bolt, 'アクション'),
+                _buildNavItem(3, Icons.chat_bubble_outline, Icons.chat_bubble,
                     'マッチ'),
                 _buildNavItem(
-                    3, Icons.settings_outlined, Icons.settings, '設定'),
+                    4, Icons.settings_outlined, Icons.settings, '設定'),
               ],
             ),
           ),
@@ -71,9 +75,11 @@ class _MainScreenState extends State<MainScreen> {
             const SizedBox(height: 4),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
               style: TextStyle(
-                fontSize: 10,
-                letterSpacing: 0.3,
+                fontSize: 9,
+                letterSpacing: 0,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive ? activeColor : inactiveColor,
               ),

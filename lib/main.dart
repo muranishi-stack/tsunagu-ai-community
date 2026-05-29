@@ -7,6 +7,7 @@ import 'theme/app_theme.dart';
 import 'services/theme_service.dart';
 import 'services/notification_preferences.dart';
 import 'services/super_like_service.dart';
+import 'services/subscription_service.dart';
 import 'services/line_auth_service.dart';
 import 'screens/auth/auth_gate.dart';
 import 'admin/screens/login_screen.dart';
@@ -50,6 +51,9 @@ Future<void> main() async {
 
   // Initialize SuperLikeService (load monthly quota)
   await SuperLikeService().initialize();
+
+  // Initialize SubscriptionService (load AIスコアオプション状態)
+  await SubscriptionService().init();
 
   // Handle LINE OAuth redirect callback if present in URL
   // （?code=...&state=... が付いていれば Cloud Function に投げて Firebase Auth にサインイン）
