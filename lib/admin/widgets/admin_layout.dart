@@ -447,6 +447,9 @@ class _TopBar extends StatelessWidget {
             ...actions!,
             const SizedBox(width: 12),
           ],
+          // データソースバッジ (firestore / mock)
+          const _DataSourceBadge(),
+          const SizedBox(width: 12),
           // 通知バッジ
           _NotificationButton(pendingCount: pendingReports),
           const SizedBox(width: 16),
@@ -493,6 +496,54 @@ class _TopBar extends StatelessWidget {
     final now = DateTime.now();
     final months = '${now.year}.${now.month.toString().padLeft(2, '0')}.${now.day.toString().padLeft(2, '0')}';
     return months;
+  }
+}
+
+class _DataSourceBadge extends StatelessWidget {
+  const _DataSourceBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final label = AdminService().dataSourceLabel;
+    final isFirestore = label == 'firestore';
+    final color = isFirestore
+        ? const Color(0xFF1FA572) // green
+        : const Color(0xFF9E9E9E); // grey
+    return Tooltip(
+      message: isFirestore
+          ? 'データソース: Firestore (実データ)'
+          : 'データソース: モック (Firestore 未到達 or 空)',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(
+            color: color.withValues(alpha: 0.35),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isFirestore ? 'FIRESTORE' : 'MOCK',
+              style: TextStyle(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
