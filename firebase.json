@@ -31,15 +31,23 @@
     ],
     "headers": [
       {
-        "source": "**/*.@(js|css|png|jpg|jpeg|gif|svg|webp|woff|woff2|otf|ttf|wasm)",
+        "comment": "画像・フォント・wasm は内容が安定しているので長期キャッシュ",
+        "source": "**/*.@(png|jpg|jpeg|gif|svg|webp|woff|woff2|otf|ttf|wasm)",
         "headers": [
           { "key": "Cache-Control", "value": "public, max-age=604800" }
         ]
       },
       {
+        "comment": "アプリ本体(main.dart.js等)・CSS・JSON・HTML はファイル名が変わらず更新されるため毎回再検証",
+        "source": "**/*.@(js|css|json)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+        ]
+      },
+      {
         "source": "**/*.html",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache" },
+          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" },
           { "key": "X-Content-Type-Options", "value": "nosniff" }
         ]
       },
