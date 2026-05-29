@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/connection_category.dart';
 import '../services/user_preferences.dart';
+import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 
 /// プロフィールカテゴリ編集ボトムシート
@@ -27,6 +28,8 @@ class CategoryEditSheet extends StatefulWidget {
 
 class _CategoryEditSheetState extends State<CategoryEditSheet> {
   final _prefs = UserPreferences();
+
+  bool get _canChangePrimary => SubscriptionService().canChangePrimaryCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -75,23 +78,68 @@ class _CategoryEditSheetState extends State<CategoryEditSheet> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'あなたが最も求めている繋がりのタイプ',
-            style: TextStyle(fontSize: 11, color: AppTheme.grey, height: 1.6),
+          Text(
+            _canChangePrimary
+                ? 'あなたが最も求めている繋がりのタイプ'
+                : 'シングルプランではメインカテゴリは契約時のカテゴリに固定されます',
+            style: TextStyle(
+                fontSize: 11,
+                color: _canChangePrimary ? AppTheme.grey : AppTheme.vermillion,
+                height: 1.6),
           ),
+          if (!_canChangePrimary) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.vermillion.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                    color: AppTheme.vermillion.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lock_outline,
+                      size: 14, color: AppTheme.vermillion),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '全カテゴリで出会うにはプレミアムプランへアップグレードしてください',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.charcoal,
+                          height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: ConnectionCategory.values.map((cat) {
               final selected = _prefs.primaryCategory == cat;
+              final locked = !_canChangePrimary;
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _prefs.setPrimaryCategory(cat);
-                  });
-                },
-                child: Container(
+                onTap: locked
+                    ? () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'シングルプランではメインカテゴリを変更できません'),
+                          ),
+                        );
+                      }
+                    : () {
+                        setState(() {
+                          _prefs.setPrimaryCategory(cat);
+                        });
+                      },
+                child: Opacity(
+                  opacity: locked && !selected ? 0.45 : 1.0,
+                  child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -125,6 +173,7 @@ class _CategoryEditSheetState extends State<CategoryEditSheet> {
                       ),
                     ],
                   ),
+                ),
                 ),
               );
             }).toList(),

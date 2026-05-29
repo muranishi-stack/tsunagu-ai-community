@@ -30,6 +30,21 @@ class SubscriptionService extends ChangeNotifier {
 
   bool get hasActivePremium => activeSubscription != null;
 
+  /// メインカテゴリを自由に変更できるか。
+  /// - 無料 / トライアル / 全カテゴリ(プレミアム) → true
+  /// - シングルプラン → false（契約時に選んだ1カテゴリに固定）
+  bool get canChangePrimaryCategory =>
+      activeSubscription?.planType != PlanType.singleCategory;
+
+  /// シングルプランで固定されているメインカテゴリ。それ以外は null。
+  ConnectionCategory? get lockedPrimaryCategory {
+    final sub = activeSubscription;
+    if (sub != null && sub.planType == PlanType.singleCategory) {
+      return sub.selectedCategory;
+    }
+    return null;
+  }
+
   /// 指定カテゴリにアクセス可能か
   bool canAccessCategory(ConnectionCategory category) {
     final sub = activeSubscription;

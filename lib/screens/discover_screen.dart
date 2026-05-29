@@ -404,11 +404,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           children: const [
             Icon(Icons.auto_awesome, color: AppTheme.vermillion),
             SizedBox(width: 8),
-            Text('SUPER ATTACK 残数 0'),
+            Text('つなぐ 残数 0'),
           ],
         ),
         content: Text(
-          '今月のSUPER ATTACK送信回数（5回）を使い切りました。\n来月1日にリセットされます。',
+          '今月の「つなぐ」送信回数（5回）を使い切りました。\n来月1日にリセットされます。',
           style: TextStyle(color: AppTheme.textSecondary(context)),
         ),
         actions: [
@@ -507,8 +507,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
               Expanded(
                 child: Text(
                   isMutualMatch
-                      ? 'SUPER ATTACK で COMPLETE!! 🎉'
-                      : 'SUPER ATTACK 送信完了 - 相手に目立って通知されます',
+                      ? 'つなぐ で MATCH!! 🎉'
+                      : '「つなぐ」を送信しました - 相手に優先通知されます',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -552,7 +552,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             const SizedBox(width: 12),
             Text(
               isMutualMatch
-                  ? 'COMPLETE!! - お互いATTACKしました'
+                  ? 'MATCH!! - お互いに「いいね」しました'
                   : 'TSUNAGU - 繋がりました',
               style: const TextStyle(
                 color: AppTheme.vermillion,
@@ -570,7 +570,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     );
   }
 
-  /// ATTACK/SKIPボタンの共通ハンドラ (Phase 1.11.2 互換)
+  /// いいね/スキップボタンの共通ハンドラ
   void _handleActionButton(bool isLike) {
     if (_profiles.isEmpty) return;
     final size = MediaQuery.of(context).size;
@@ -595,7 +595,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             if (_prefs.hasActiveLocationFilter) _buildFilterBanner(),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                // 画像を大きく見せるため余白を縮小
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
                 child: _loading
                     ? const Center(
                         child: CircularProgressIndicator(
@@ -627,12 +628,17 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                                             _currentIndex % _profiles.length],
                                         size),
                                   ),
+                                  // アクションボタンを画像下部にオーバーレイ
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 18,
+                                    child: _buildActionButtons(),
+                                  ),
                                 ],
                               ),
               ),
             ),
-            _buildActionButtons(),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1061,11 +1067,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                   ),
                 ),
                 // 距離は名前横（A案）に表示するため、右上バッジは削除
-                // Profile info (bottom)
+                // Profile info (bottom) — アクションボタン分のスペースを確保
                 Positioned(
                   left: 24,
                   right: 24,
-                  bottom: 24,
+                  bottom: isBackground ? 24 : 104,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1208,7 +1214,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          'ATTACK',
+                          'いいね',
                           style: TextStyle(
                             color: AppTheme.gold,
                             fontSize: 24,
@@ -1233,7 +1239,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          'SKIP',
+                          'スキップ',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -1257,46 +1263,51 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     final superLikeRemaining = _superLike.remaining;
     final isPremium = _subscription.hasActivePremium;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Rewind: プレミアム限定（無料時は鍵バッジ）
+          // もどす: プレミアム限定（無料時は鍵バッジ）
           _buildActionButton(
             icon: Icons.replay,
             iconColor: AppTheme.gold,
-            size: 48,
-            iconSize: 22,
+            size: 44,
+            iconSize: 20,
             onTap: _handleRewind,
             lockBadge: !isPremium,
+            label: 'もどす',
           ),
-          // SKIP
+          // スキップ
           _buildActionButton(
             icon: Icons.close,
             iconColor: AppTheme.charcoal,
-            size: 64,
+            size: 62,
             iconSize: 28,
             onTap: () => _handleActionButton(false),
+            label: 'スキップ',
           ),
-          // SuperLike: 月5回制限（残数バッジ表示）
+          // つなぐ（スーパーいいね）: 月5回制限（残数バッジ表示）
           _buildActionButton(
-            icon: Icons.auto_awesome,
+            icon: Icons.link,
             iconColor: AppTheme.vermillion,
-            size: 48,
+            size: 44,
             iconSize: 22,
             onTap: () => _handleSuperLike(size),
             counterBadge: superLikeRemaining,
             counterColor: superLikeRemaining > 0
                 ? AppTheme.vermillion
                 : Colors.grey,
+            label: 'つなぐ',
           ),
-          // ATTACK
+          // いいね
           _buildActionButton(
             icon: Icons.favorite,
             iconColor: AppTheme.vermillion,
-            size: 64,
+            size: 62,
             iconSize: 28,
             onTap: () => _handleActionButton(true),
+            label: 'いいね',
           ),
         ],
       ),
@@ -1312,11 +1323,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     int? counterBadge,
     Color? counterColor,
     bool lockBadge = false,
+    String? label,
   }) {
     // Phase 1.11.9: ヒットテスト問題を解決するため Material + InkWell に変更
     // Stack(clipBehavior: Clip.none) + Positioned バッジが GestureDetector の
     // ヒットテストを阻害していた問題を修正
-    return SizedBox(
+    final button = SizedBox(
       width: size + 12, // バッジ分の余裕を含む明示的サイズ
       height: size + 12,
       child: Stack(
@@ -1403,6 +1415,27 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             ),
         ],
       ),
+    );
+
+    if (label == null) return button;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button,
+        const SizedBox(height: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 4),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

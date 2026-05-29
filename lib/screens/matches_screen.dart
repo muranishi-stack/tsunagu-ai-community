@@ -124,7 +124,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 48),
             child: Text(
-              '気になる相手にATTACKを送って、\n相互ATTACKでCOMPLETE!!を獲得しよう！',
+              '気になる相手に「いいね」を送って、\nお互いに「いいね」でMATCH!!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppTheme.textTertiary(context),
@@ -634,7 +634,7 @@ class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
                           Row(
                             children: [
                               const Text(
-                                'SUPER ATTACK',
+                                'つなぐ',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
@@ -663,7 +663,7 @@ class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '$count人があなたにSUPER ATTACKを送りました',
+                            '$count人があなたに「つなぐ」を送りました',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
@@ -721,7 +721,7 @@ class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
                       color: AppTheme.vermillion, size: 22),
                   const SizedBox(width: 8),
                   Text(
-                    'あなたに SUPER ATTACK (${notifications.length})',
+                    'あなたへの「つなぐ」(${notifications.length})',
                     style: TextStyle(
                       color: AppTheme.textPrimary(context),
                       fontSize: 15,
@@ -822,7 +822,7 @@ class _SuperLikerTile extends StatelessWidget {
             ),
           ),
           subtitle: Text(
-            'あなたに SUPER ATTACK を送りました',
+            'あなたに「つなぐ」を送りました',
             style: TextStyle(
               color: AppTheme.vermillion,
               fontSize: 12,
