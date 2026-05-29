@@ -511,7 +511,7 @@ class AdminService extends ChangeNotifier {
               '${r.selectedCategory?.label ?? "カテゴリ"}月額 (¥${r.amountJpy}) を購入';
           break;
         case PlanType.boost:
-          desc = 'ブースト (¥${r.amountJpy}) を購入';
+          desc = 'HIGHLIGHT (¥${r.amountJpy}) を購入';
           break;
         case PlanType.freeTrial:
           desc = '無料体験を開始';

@@ -247,7 +247,7 @@ class ProfileDetailScreen extends StatelessWidget {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('LIKE送信しました',
+                      content: Text('ATTACK送信しました',
                           style: TextStyle(letterSpacing: 1.5)),
                       backgroundColor: AppTheme.black,
                       behavior: SnackBarBehavior.floating,
@@ -265,7 +265,7 @@ class ProfileDetailScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'LIKE',
+                  'ATTACK',
                   style: TextStyle(letterSpacing: 3.0, fontSize: 12),
                 ),
               ),

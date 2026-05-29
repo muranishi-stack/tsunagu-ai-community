@@ -299,7 +299,7 @@ class _HeroHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     _heroChip(
-                      label: 'BOOSTS',
+                      label: 'HIGHLIGHTS',
                       value: formatNumber(activeBoosts),
                       icon: Icons.rocket_launch,
                       highlight: true,
@@ -681,7 +681,7 @@ class _KpiGrid extends StatelessWidget {
               icon: Icons.favorite_outline,
             ),
             StatCard(
-              label: 'ACTIVE BOOSTS',
+              label: 'ACTIVE HIGHLIGHTS',
               value: formatNumber(kpi.activeBoosts),
               change: 'LIVE',
               changePositive: true,
@@ -974,7 +974,7 @@ class _PlanBreakdownCard extends StatelessWidget {
       case PlanType.singleCategory:
         return '単カテゴリ月額';
       case PlanType.boost:
-        return 'ブースト';
+        return 'HIGHLIGHT';
       case PlanType.freeTrial:
         return '無料体験';
     }

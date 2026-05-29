@@ -52,7 +52,7 @@ class AdminSettingsScreen extends StatelessWidget {
                 _SettingsTile(
                   icon: Icons.attach_money_outlined,
                   label: 'プラン料金設定',
-                  description: '全カテゴリ ¥4,800 / 単カテゴリ ¥1,980 / ブースト ¥500',
+                  description: '全カテゴリ ¥4,800 / 単カテゴリ ¥1,980 / HIGHLIGHT ¥500',
                   onTap: () => _showInfo(context, 'プラン料金は次回リリースで編集可能になります'),
                 ),
                 _SettingsTile(

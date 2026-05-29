@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../services/user_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/boost_button.dart';
 import 'chat_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -41,6 +42,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
             color: AppTheme.textPrimary(context),
           ),
         ),
+        actions: const [
+          // HIGHLIGHTボタンをCONNECTIONS画面に配置
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: BoostButton(compact: true),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -116,7 +124,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 48),
             child: Text(
-              '気になる相手にLikeを送って、\n相互Likeでマッチを獲得しよう！',
+              '気になる相手にATTACKを送って、\n相互ATTACKでCOMPLETE!!を獲得しよう！',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppTheme.textTertiary(context),
@@ -626,7 +634,7 @@ class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
                           Row(
                             children: [
                               const Text(
-                                'SUPER LIKE',
+                                'SUPER ATTACK',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
@@ -655,7 +663,7 @@ class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '$count人があなたにSuper Likeを送りました',
+                            '$count人があなたにSUPER ATTACKを送りました',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
@@ -713,7 +721,7 @@ class _SuperLikeReceivedBannerState extends State<_SuperLikeReceivedBanner>
                       color: AppTheme.vermillion, size: 22),
                   const SizedBox(width: 8),
                   Text(
-                    'あなたに Super Like (${notifications.length})',
+                    'あなたに SUPER ATTACK (${notifications.length})',
                     style: TextStyle(
                       color: AppTheme.textPrimary(context),
                       fontSize: 15,
@@ -814,7 +822,7 @@ class _SuperLikerTile extends StatelessWidget {
             ),
           ),
           subtitle: Text(
-            'あなたに Super Like を送りました',
+            'あなたに SUPER ATTACK を送りました',
             style: TextStyle(
               color: AppTheme.vermillion,
               fontSize: 12,

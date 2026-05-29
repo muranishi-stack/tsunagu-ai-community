@@ -4,7 +4,6 @@ import '../models/connection_category.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tsunagu_logo.dart';
 import '../widgets/location_filter_sheet.dart';
-import '../widgets/boost_button.dart';
 import '../services/user_preferences.dart';
 import '../services/ai_matching_service.dart';
 import '../services/user_service.dart';
@@ -388,11 +387,11 @@ class _DiscoverScreenState extends State<DiscoverScreen>
           children: const [
             Icon(Icons.auto_awesome, color: AppTheme.vermillion),
             SizedBox(width: 8),
-            Text('Super Like 残数 0'),
+            Text('SUPER ATTACK 残数 0'),
           ],
         ),
         content: Text(
-          '今月のSuper Like送信回数（5回）を使い切りました。\n来月1日にリセットされます。',
+          '今月のSUPER ATTACK送信回数（5回）を使い切りました。\n来月1日にリセットされます。',
           style: TextStyle(color: AppTheme.textSecondary(context)),
         ),
         actions: [
@@ -491,8 +490,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
               Expanded(
                 child: Text(
                   isMutualMatch
-                      ? 'Super Like で マッチ成立！ 🎉'
-                      : 'Super Like 送信完了 - 相手に目立って通知されます',
+                      ? 'SUPER ATTACK で COMPLETE!! 🎉'
+                      : 'SUPER ATTACK 送信完了 - 相手に目立って通知されます',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -536,7 +535,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             const SizedBox(width: 12),
             Text(
               isMutualMatch
-                  ? 'マッチ成立！ - お互いLikeしました'
+                  ? 'COMPLETE!! - お互いATTACKしました'
                   : 'TSUNAGU - 繋がりました',
               style: const TextStyle(
                 color: AppTheme.vermillion,
@@ -817,11 +816,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         ],
       ),
       actions: [
-        // BOOSTボタンをAppBar内に配置（コンパクト版でカテゴリタブと別行に）
-        const Padding(
-          padding: EdgeInsets.only(right: 4),
-          child: BoostButton(compact: true),
-        ),
+        // HIGHLIGHTボタンはCONNECTIONS画面に移設済み
         IconButton(
           icon: const Icon(Icons.notifications_none_outlined, size: 22),
           onPressed: () {},
@@ -1135,7 +1130,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          'LIKE',
+                          'ATTACK',
                           style: TextStyle(
                             color: AppTheme.gold,
                             fontSize: 24,
@@ -1160,7 +1155,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
-                          'PASS',
+                          'SKIP',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -1197,7 +1192,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             onTap: _handleRewind,
             lockBadge: !isPremium,
           ),
-          // PASS
+          // SKIP
           _buildActionButton(
             icon: Icons.close,
             iconColor: AppTheme.charcoal,
@@ -1217,7 +1212,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                 ? AppTheme.vermillion
                 : Colors.grey,
           ),
-          // LIKE
+          // ATTACK
           _buildActionButton(
             icon: Icons.favorite,
             iconColor: AppTheme.vermillion,

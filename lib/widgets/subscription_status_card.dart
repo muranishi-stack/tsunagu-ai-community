@@ -109,7 +109,7 @@ class _SubscriptionStatusCardState extends State<SubscriptionStatusCard> {
                           size: 10, color: AppTheme.vermillion),
                       SizedBox(width: 4),
                       Text(
-                        'BOOST',
+                        'HIGHLIGHT',
                         style: TextStyle(
                           color: AppTheme.vermillion,
                           fontSize: 9,
@@ -168,7 +168,7 @@ class _SubscriptionStatusCardState extends State<SubscriptionStatusCard> {
                     if (boost != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'ブースト ${boost.remainingLabel}',
+                        'HIGHLIGHT ${boost.remainingLabel}',
                         style: const TextStyle(
                           color: AppTheme.vermillion,
                           fontSize: 10,
@@ -253,7 +253,7 @@ class _SubscriptionStatusCardState extends State<SubscriptionStatusCard> {
                         Icon(Icons.bolt, size: 10, color: Colors.white),
                         SizedBox(width: 4),
                         Text(
-                          'BOOST',
+                          'HIGHLIGHT',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 9,

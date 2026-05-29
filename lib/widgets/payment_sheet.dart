@@ -64,7 +64,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
     if (!mounted) return;
 
     if (result.success) {
-      // サブスクリプション/ブースト有効化
+      // サブスクリプション/HIGHLIGHT有効化
       if (widget.plan.type == PlanType.freeTrial) {
         _subscriptionService.startFreeTrial();
       } else if (widget.plan.type == PlanType.boost) {
@@ -421,7 +421,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
     final plan = widget.plan;
     if (plan.type == PlanType.boost) {
       return const Text(
-        '※ ブーストは購入後ただちに有効化され、24時間継続します。返金不可。',
+        '※ HIGHLIGHTは購入後ただちに有効化され、24時間継続します。返金不可。',
         style: TextStyle(color: AppTheme.lightGrey, fontSize: 10, height: 1.5),
       );
     }

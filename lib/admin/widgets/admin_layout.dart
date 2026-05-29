@@ -155,7 +155,7 @@ class _Sidebar extends StatelessWidget {
                 _menuItem(context, route, Icons.payments_outlined,
                     Icons.payments, '課金・売上', '/admin/revenue'),
                 _menuItem(context, route, Icons.rocket_launch_outlined,
-                    Icons.rocket_launch, 'ブースト履歴', '/admin/boosts'),
+                    Icons.rocket_launch, 'HIGHLIGHT履歴', '/admin/boosts'),
                 const SizedBox(height: 16),
                 _menuSection('OPERATIONS'),
                 _menuItem(

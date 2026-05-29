@@ -538,7 +538,7 @@ class _AdminRevenueScreenState extends State<AdminRevenueScreen> {
         label = 'SINGLE';
         break;
       case PlanType.boost:
-        label = 'BOOST';
+        label = 'HIGHLIGHT';
         break;
       case PlanType.freeTrial:
         label = 'TRIAL';

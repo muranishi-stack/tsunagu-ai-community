@@ -1067,7 +1067,7 @@ class _PanelContent extends StatelessWidget {
       case PlanType.singleCategory:
         return '単カテゴリ月額';
       case PlanType.boost:
-        return 'ブースト中';
+        return 'HIGHLIGHT中';
       case PlanType.freeTrial:
         return '無料体験中';
     }
@@ -1320,7 +1320,7 @@ class _PlanBadge extends StatelessWidget {
       case PlanType.singleCategory:
         return 'SINGLE';
       case PlanType.boost:
-        return 'BOOST';
+        return 'HIGHLIGHT';
       case PlanType.freeTrial:
         return 'TRIAL';
     }

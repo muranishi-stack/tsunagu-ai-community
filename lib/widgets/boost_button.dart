@@ -5,8 +5,8 @@ import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import 'payment_sheet.dart';
 
-/// Discover画面のアクションボタン横に表示する、
-/// 「アプローチ強化（ブースト）」ボタン
+/// CONNECTIONS画面のAppBarに配置する、
+/// 「アプローチ強化（HIGHLIGHT）」ボタン
 class BoostButton extends StatefulWidget {
   /// コンパクト表示（AppBar内に収まるサイズ）
   final bool compact;
@@ -96,7 +96,7 @@ class _BoostButtonState extends State<BoostButton> {
               Icon(Icons.rocket_launch, size: 12, color: Colors.white),
               SizedBox(width: 5),
               Text(
-                'BOOST',
+                'HIGHLIGHT',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 10,
@@ -135,7 +135,7 @@ class _BoostButtonState extends State<BoostButton> {
             Icon(Icons.rocket_launch, size: 14, color: Colors.white),
             SizedBox(width: 8),
             Text(
-              'BOOST',
+              'HIGHLIGHT',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 11,
@@ -215,7 +215,7 @@ class _BoostButtonState extends State<BoostButton> {
           ),
           const SizedBox(width: 8),
           const Text(
-            'BOOST中',
+            'HIGHLIGHT中',
             style: TextStyle(
               color: AppTheme.vermillion,
               fontSize: 10,

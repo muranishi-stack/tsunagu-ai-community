@@ -27,7 +27,7 @@ class _AdminBoostsScreenState extends State<AdminBoostsScreen> {
     return AnimatedBuilder(
       animation: service,
       builder: (context, _) {
-        // ブースト購入レコードを抽出
+        // HIGHLIGHT購入レコードを抽出
         final boosts = service.revenues
             .where((r) => r.planType == PlanType.boost)
             .toList();
@@ -47,7 +47,7 @@ class _AdminBoostsScreenState extends State<AdminBoostsScreen> {
 
         return AdminLayout(
           currentRoute: '/admin/boosts',
-          title: 'BOOSTS',
+          title: 'HIGHLIGHTS',
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(32),
             child: Column(
@@ -77,7 +77,7 @@ class _AdminBoostsScreenState extends State<AdminBoostsScreen> {
                         icon: Icons.shopping_bag_outlined,
                       ),
                       StatCard(
-                        label: 'BOOST REVENUE',
+                        label: 'HIGHLIGHT REVENUE',
                         value: formatCurrency(totalRevenue),
                         change: '+18.6%',
                         icon: Icons.payments_outlined,
@@ -93,7 +93,7 @@ class _AdminBoostsScreenState extends State<AdminBoostsScreen> {
                 }),
                 const SizedBox(height: 32),
 
-                // ブースト時間帯分布
+                // HIGHLIGHT時間帯分布
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(

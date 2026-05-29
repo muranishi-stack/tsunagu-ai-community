@@ -452,7 +452,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildStatRow('Matches', '12'),
                   const SizedBox(height: 4),
-                  _buildStatRow('Likes', '47'),
+                  _buildStatRow('ATTACKs', '47'),
                 ],
               ),
             ],

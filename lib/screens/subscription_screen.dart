@@ -194,9 +194,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               _buildSectionHeader('MONTHLY PLANS'),
               const SizedBox(height: 12),
               ...SubscriptionPlan.monthlyPlans.map(_buildPlanCard),
-              // ブースト
+              // HIGHLIGHT
               const SizedBox(height: 24),
-              _buildSectionHeader('BOOST'),
+              _buildSectionHeader('HIGHLIGHT'),
               const SizedBox(height: 12),
               _buildBoostCard(),
               const SizedBox(height: 32),
@@ -766,7 +766,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       color: AppTheme.vermillion, size: 16),
                   const SizedBox(width: 8),
                   const Text(
-                    'BOOST中',
+                    'HIGHLIGHT中',
                     style: TextStyle(
                       color: AppTheme.vermillion,
                       fontSize: 10,
@@ -803,8 +803,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               child: Text(
                 activeBoost != null
-                    ? '追加でブースト購入'
-                    : '${plan.priceLabel}でブースト',
+                    ? '追加でHIGHLIGHT購入'
+                    : '${plan.priceLabel}でHIGHLIGHT',
                 style: const TextStyle(
                   letterSpacing: 2.0,
                   fontSize: 12,
