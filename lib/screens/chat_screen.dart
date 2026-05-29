@@ -293,10 +293,181 @@ class _ChatScreenState extends State<ChatScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.more_horiz, size: 20),
-          onPressed: () {},
+          onPressed: _showSafetyMenu,
         ),
       ],
     );
+  }
+
+  void _showSafetyMenu() {
+    final partner = widget.match.user;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.flag_outlined, color: Colors.orange),
+              title: const Text('通報する'),
+              subtitle: Text('${partner.name} を運営に通報します'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showReportDialog();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.block, color: Colors.redAccent),
+              title: const Text('ブロックする'),
+              subtitle: Text('${partner.name} を今後表示しません'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmBlock();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static const _reportReasons = <String>[
+    'スパム・宣伝',
+    '不適切なメッセージ',
+    'なりすまし・偽プロフィール',
+    'ハラスメント・嫌がらせ',
+    '勧誘（ビジネス・宗教等）',
+    'その他',
+  ];
+
+  void _showReportDialog() {
+    final partner = widget.match.user;
+    String? selectedReason;
+    final descCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('通報する'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('理由を選択してください',
+                    style: TextStyle(fontSize: 13)),
+                const SizedBox(height: 8),
+                ..._reportReasons.map((r) => RadioListTile<String>(
+                      value: r,
+                      groupValue: selectedReason,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppTheme.vermillion,
+                      title: Text(r, style: const TextStyle(fontSize: 14)),
+                      onChanged: (v) => setLocal(() => selectedReason = v),
+                    )),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: descCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: '詳細（任意）',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: selectedReason == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      try {
+                        await _svc.submitReport(
+                          targetUserId: partner.id,
+                          targetUserName: partner.name,
+                          reason: selectedReason!,
+                          description: descCtrl.text.trim(),
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('通報を受け付けました。ご協力ありがとうございます。')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('通報に失敗しました: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('通報する',
+                  style: TextStyle(color: AppTheme.vermillion)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmBlock() async {
+    final partner = widget.match.user;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${partner.name} をブロック'),
+        content: const Text(
+            'ブロックすると、相手は今後 DISCOVER やマッチに表示されなくなります。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ブロック',
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _svc.blockUser(partner.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${partner.name} をブロックしました')),
+        );
+        Navigator.of(context).pop(); // チャット画面を閉じる
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ブロックに失敗しました: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildMessageBubble(Message message) {

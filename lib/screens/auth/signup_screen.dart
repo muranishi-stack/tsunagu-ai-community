@@ -6,6 +6,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
 import '../../services/user_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -84,6 +85,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 白基調デザインのため端末がダークモードでも常にライトテーマで描画
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -126,8 +135,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'メールアドレス',
+                        hintText: 'you@example.com',
                         prefixIcon: Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(),
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
@@ -153,7 +162,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           onPressed: () =>
                               setState(() => _obscure1 = !_obscure1),
                         ),
-                        border: const OutlineInputBorder(),
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) {
@@ -179,7 +187,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           onPressed: () =>
                               setState(() => _obscure2 = !_obscure2),
                         ),
-                        border: const OutlineInputBorder(),
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) {

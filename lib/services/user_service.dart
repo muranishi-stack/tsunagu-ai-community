@@ -36,6 +36,8 @@ class UserService {
       _db.collection('matches');
   CollectionReference<Map<String, dynamic>> get _chats =>
       _db.collection('chats');
+  CollectionReference<Map<String, dynamic>> get _reports =>
+      _db.collection('reports');
 
   // ─── Current user shortcuts ────────────────────────────────────────────
   User? get currentUser => _auth.currentUser;
@@ -83,6 +85,62 @@ class UserService {
   /// パスワードリセットメール送信
   Future<void> sendPasswordResetEmail(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SAFETY (通報・ブロック)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// ユーザーを通報する。`reports` コレクションへ書き込み、管理コンソールが
+  /// 確認・対応する。
+  Future<void> submitReport({
+    required String targetUserId,
+    required String targetUserName,
+    required String reason,
+    String description = '',
+  }) async {
+    final uid = currentUid;
+    if (uid == null) {
+      throw StateError('ログインが必要です');
+    }
+    String reporterName = '';
+    try {
+      reporterName = (await getProfile(uid))?.name ?? '';
+    } catch (_) {}
+    await _reports.add({
+      'reporter_id': uid,
+      'reporter_name': reporterName,
+      'target_user_id': targetUserId,
+      'target_user_name': targetUserName,
+      'reason': reason,
+      'description': description,
+      'status': 'pending',
+      'created_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// ユーザーをブロックする。自分の user doc の `blocked_uids` に追加する。
+  /// DISCOVER 等の一覧はこのリストを除外して表示する。
+  Future<void> blockUser(String targetUserId) async {
+    final uid = currentUid;
+    if (uid == null) return;
+    await _users.doc(uid).set({
+      'blocked_uids': FieldValue.arrayUnion([targetUserId]),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// 自分がブロックしたユーザー UID 一覧を取得
+  Future<Set<String>> getBlockedUids() async {
+    final uid = currentUid;
+    if (uid == null) return {};
+    try {
+      final doc = await _users.doc(uid).get();
+      final list = (doc.data()?['blocked_uids'] as List?) ?? const [];
+      return list.map((e) => e.toString()).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
 
   /// Googleアカウントでサインイン
   /// プラットフォームに応じて適切な認証フローを使用

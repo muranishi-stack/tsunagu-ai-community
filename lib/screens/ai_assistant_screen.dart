@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class AIAssistantScreen extends StatefulWidget {
-  const AIAssistantScreen({super.key});
+  /// 起動時に自動送信する初期プロンプト（任意）。
+  /// プロフィール画面の AI 機能ショートカットから文脈を渡すのに使う。
+  final String? initialPrompt;
+
+  const AIAssistantScreen({super.key, this.initialPrompt});
 
   @override
   State<AIAssistantScreen> createState() => _AIAssistantScreenState();
@@ -16,6 +20,15 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       isAI: true,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final prompt = widget.initialPrompt;
+    if (prompt != null && prompt.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _sendMessage(prompt));
+    }
+  }
 
   final List<String> _suggestions = [
     'プロフィールを改善したい',

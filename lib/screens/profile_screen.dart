@@ -12,6 +12,10 @@ import '../services/theme_service.dart';
 import 'subscription_screen.dart';
 import 'profile_edit_screen.dart';
 import 'photo_manager_screen.dart';
+import 'ai_assistant_screen.dart';
+import 'settings/matching_settings_screen.dart';
+import 'settings/notification_settings_screen.dart';
+import 'settings/help_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -84,6 +88,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ─── Theme picker ────────────────────────────────────────────────
+  void _push(Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
   IconData _themeIcon() {
     switch (ThemeService().themeMode) {
       case ThemeMode.light:
@@ -178,8 +186,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 20),
-            onPressed: () {},
+            icon: const Icon(Icons.notifications_none, size: 20),
+            tooltip: '通知設定',
+            onPressed: () => _push(const NotificationSettingsScreen()),
           ),
         ],
       ),
@@ -224,15 +233,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           MaterialPageRoute(
                               builder: (_) => const PhotoManagerScreen()),
                         )),
-                _MenuItem(Icons.tune, 'マッチング設定', onTap: () {}),
+                _MenuItem(Icons.tune, 'マッチング設定',
+                    onTap: () => _push(const MatchingSettingsScreen())),
               ]),
               _buildMenuSection('AI FEATURES', [
                 _MenuItem(Icons.auto_awesome, 'AIプロフィール最適化',
-                    isAccent: true, onTap: () {}),
+                    isAccent: true,
+                    onTap: () => _push(const AIAssistantScreen(
+                        initialPrompt: 'プロフィールを改善したい'))),
                 _MenuItem(Icons.psychology_outlined, '相性診断履歴',
-                    onTap: () {}),
+                    onTap: () => _push(const AIAssistantScreen(
+                        initialPrompt: '相性の良い相手の特徴を教えて'))),
                 _MenuItem(Icons.lightbulb_outline, 'メッセージアドバイス',
-                    onTap: () {}),
+                    onTap: () => _push(const AIAssistantScreen(
+                        initialPrompt: '最初のメッセージのコツは?'))),
               ]),
               _buildMenuSection('PREFERENCES', [
                 _MenuItem(
@@ -240,9 +254,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'テーマ (${ThemeService().currentLabel})',
                   onTap: () => _showThemePicker(context),
                 ),
-                _MenuItem(Icons.notifications_none, '通知設定', onTap: () {}),
-                _MenuItem(Icons.lock_outline, 'プライバシー', onTap: () {}),
-                _MenuItem(Icons.help_outline, 'ヘルプ・サポート', onTap: () {}),
+                _MenuItem(Icons.notifications_none, '通知設定',
+                    onTap: () => _push(const NotificationSettingsScreen())),
+                _MenuItem(Icons.help_outline, 'ヘルプ・サポート',
+                    onTap: () => _push(const HelpScreen())),
               ]),
               const SizedBox(height: 24),
               Padding(
