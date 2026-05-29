@@ -37,6 +37,9 @@ class AdminService extends ChangeNotifier {
   String _dataSourceLabel = 'mock'; // 'firestore' or 'mock'
   String get dataSourceLabel => _dataSourceLabel;
 
+  // KPI 用のサーバ側集計値
+  int _totalMatches30d = 0;
+
   // AI スキャナー状態
   Timer? _aiScannerTimer;
   DateTime _aiScannerLastRun = DateTime.now();
@@ -105,18 +108,25 @@ class AdminService extends ChangeNotifier {
           _firestore.fetchAllReports(limit: 100),
           _firestore.fetchAllTransactions(limit: 500),
           _firestore.fetchAllAiFlags(limit: 100),
+          _firestore.fetchAllAnnouncements(limit: 50),
+          _firestore.fetchAllDataSources(),
+          _firestore.countMatchesInLast30Days(),
         ]);
 
         final fsUsers = results[0] as List<AdminUser>;
         final fsReports = results[1] as List<Report>;
         final fsTx = results[2] as List<RevenueRecord>;
         final fsFlags = results[3] as List<AiModerationFlag>;
+        final fsAnns = results[4] as List<AdminAnnouncement>;
+        final fsSources = results[5] as List<DataSourceIntegration>;
+        final fsMatches30 = results[6] as int;
 
         if (kDebugMode) {
           debugPrint(
               'AdminService: Firestore loaded - users=${fsUsers.length}, '
               'reports=${fsReports.length}, tx=${fsTx.length}, '
-              'flags=${fsFlags.length}');
+              'flags=${fsFlags.length}, anns=${fsAnns.length}, '
+              'sources=${fsSources.length}, matches30=$fsMatches30');
         }
 
         if (fsUsers.isNotEmpty) {
@@ -131,12 +141,26 @@ class AdminService extends ChangeNotifier {
           _aiFlags
             ..clear()
             ..addAll(fsFlags);
+          _totalMatches30d = fsMatches30;
+          // announcements / data_sources は Firestore にあればそれを使い、
+          // なければシードで埋める（既存挙動を維持しつつ徐々に実データに）
+          if (fsAnns.isNotEmpty) {
+            _announcements
+              ..clear()
+              ..addAll(fsAnns);
+          } else {
+            _seedAnnouncementsIfEmpty();
+          }
+          if (fsSources.isNotEmpty) {
+            _dataSources
+              ..clear()
+              ..addAll(fsSources);
+          } else {
+            _seedDataSourcesIfEmpty();
+          }
           // Sort by date (newest first)
           _reports.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           _revenues.sort((a, b) => b.date.compareTo(a.date));
-          // Initialize the lighter-weight in-memory only structures
-          _seedAnnouncementsIfEmpty();
-          _seedDataSourcesIfEmpty();
           _dataGenerated = true;
           _dataSourceLabel = 'firestore';
           if (kDebugMode) {
@@ -281,8 +305,7 @@ class AdminService extends ChangeNotifier {
       monthlyRecurringRevenue: mrr,
       totalRevenue30d: monthlyRevenue,
       churnRate: 4.8,
-      // TODO: matches コレクションを fetch して 30日件数を集計
-      totalMatches30d: 12_847,
+      totalMatches30d: _totalMatches30d,
       activeSubscriptions: activeSubs,
       activeBoosts: activeBoostCount,
       conversionRate: conversion,

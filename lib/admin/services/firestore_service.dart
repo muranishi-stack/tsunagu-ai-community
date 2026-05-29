@@ -38,6 +38,10 @@ class FirestoreService {
       _db.collection('announcements');
   CollectionReference<Map<String, dynamic>> get _aiFlags =>
       _db.collection('ai_flags');
+  CollectionReference<Map<String, dynamic>> get _matches =>
+      _db.collection('matches');
+  CollectionReference<Map<String, dynamic>> get _dataSources =>
+      _db.collection('data_sources');
 
   // ============================================================
   // Users
@@ -154,6 +158,24 @@ class FirestoreService {
   // Announcements
   // ============================================================
 
+  Future<List<AdminAnnouncement>> fetchAllAnnouncements({int? limit}) async {
+    try {
+      Query<Map<String, dynamic>> query =
+          _announcements.orderBy('published_at', descending: true);
+      if (limit != null) query = query.limit(limit);
+      final snap = await query.get();
+      return snap.docs
+          .map((d) => _announcementFromFirestore(d.id, d.data()))
+          .whereType<AdminAnnouncement>()
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FirestoreService.fetchAllAnnouncements error: $e');
+      }
+      return [];
+    }
+  }
+
   Future<void> publishAnnouncement(AdminAnnouncement ann) async {
     try {
       await _announcements.doc(ann.id).set({
@@ -166,6 +188,78 @@ class FirestoreService {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('FirestoreService.publishAnnouncement error: $e');
+      }
+    }
+  }
+
+  Future<void> deleteAnnouncement(String id) async {
+    try {
+      await _announcements.doc(id).delete();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FirestoreService.deleteAnnouncement error: $e');
+      }
+    }
+  }
+
+  // ============================================================
+  // Matches (count-only — admin dashboard KPI)
+  // ============================================================
+
+  /// 過去 30 日間にマッチした件数。count() aggregation を使うので
+  /// 全件 fetch せず 1 read で済む（Firestore の課金単位上、安価）。
+  Future<int> countMatchesInLast30Days() async {
+    try {
+      final since = DateTime.now().subtract(const Duration(days: 30));
+      final agg = await _matches
+          .where('matched_at', isGreaterThan: Timestamp.fromDate(since))
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FirestoreService.countMatchesInLast30Days error: $e');
+      }
+      return 0;
+    }
+  }
+
+  // ============================================================
+  // Data Sources
+  // ============================================================
+
+  Future<List<DataSourceIntegration>> fetchAllDataSources() async {
+    try {
+      final snap = await _dataSources.get();
+      return snap.docs
+          .map((d) => _dataSourceFromFirestore(d.id, d.data()))
+          .whereType<DataSourceIntegration>()
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FirestoreService.fetchAllDataSources error: $e');
+      }
+      return [];
+    }
+  }
+
+  Future<void> upsertDataSource(DataSourceIntegration ds) async {
+    try {
+      await _dataSources.doc(ds.provider.name).set({
+        'provider': ds.provider.name,
+        'status': ds.status.name,
+        'purpose': ds.purpose,
+        'legal_note': ds.legalNote,
+        'how_to_setup': ds.howToSetup,
+        'imported_records': ds.importedRecords,
+        'last_sync_at': ds.lastSyncAt == null
+            ? null
+            : Timestamp.fromDate(ds.lastSyncAt!),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FirestoreService.upsertDataSource error: $e');
       }
     }
   }
@@ -206,11 +300,11 @@ class FirestoreService {
   // ============================================================
 
   /// Ping Firestore by reading a tiny document. Returns true on success.
+  /// オフライン永続化が有効なときはローカルキャッシュにヒットすれば
+  /// 1 read もかからない（network error 時は throw して false）。
   Future<bool> isReachable() async {
     try {
-      // Just attempt to read 1 doc from 'users'. If permission denied or
-      // network error, return false.
-      await _users.limit(1).get(const GetOptions(source: Source.server));
+      await _users.limit(1).get();
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -471,6 +565,55 @@ class FirestoreService {
     try {
       return AiFlagEnforcement.values.firstWhere((e) => e.name == s);
     } catch (_) {
+      return null;
+    }
+  }
+
+  AdminAnnouncement? _announcementFromFirestore(
+      String docId, Map<String, dynamic> d) {
+    try {
+      return AdminAnnouncement(
+        id: docId,
+        title: (d['title'] as String?) ?? '',
+        body: (d['body'] as String?) ?? '',
+        publishedAt: _dateFrom(d['published_at']) ?? DateTime.now(),
+        status: AnnouncementStatus.values.firstWhere(
+          (e) => e.name == (d['status'] as String?),
+          orElse: () => AnnouncementStatus.published,
+        ),
+        reachedUsers: (d['reached_users'] as num?)?.toInt() ?? 0,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to parse announcement $docId: $e');
+      }
+      return null;
+    }
+  }
+
+  DataSourceIntegration? _dataSourceFromFirestore(
+      String docId, Map<String, dynamic> d) {
+    try {
+      final provider = DataSourceProvider.values.firstWhere(
+        (e) => e.name == (d['provider'] as String? ?? docId),
+        orElse: () => DataSourceProvider.syntheticSeed,
+      );
+      return DataSourceIntegration(
+        provider: provider,
+        status: DataSourceStatus.values.firstWhere(
+          (e) => e.name == (d['status'] as String?),
+          orElse: () => DataSourceStatus.notConfigured,
+        ),
+        purpose: (d['purpose'] as String?) ?? '',
+        legalNote: (d['legal_note'] as String?) ?? '',
+        howToSetup: (d['how_to_setup'] as String?) ?? '',
+        importedRecords: (d['imported_records'] as num?)?.toInt() ?? 0,
+        lastSyncAt: _dateFrom(d['last_sync_at']),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to parse data source $docId: $e');
+      }
       return null;
     }
   }
