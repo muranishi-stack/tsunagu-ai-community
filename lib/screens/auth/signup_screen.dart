@@ -4,8 +4,11 @@
 //
 // Phase 1.5 - TSUNAGU
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../constants/legal_urls.dart';
 import '../../services/user_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -28,12 +31,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agreeTerms = false;
   String? _errorMsg;
 
+  late final TapGestureRecognizer _termsRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openExternal(LegalUrls.termsOfService);
+  late final TapGestureRecognizer _privacyRecognizer = TapGestureRecognizer()
+    ..onTap = () => _openExternal(LegalUrls.privacyPolicy);
+
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _passConfirmCtrl.dispose();
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
     super.dispose();
+  }
+
+  Future<void> _openExternal(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      setState(() => _errorMsg = 'リンクを開けませんでした');
+    }
   }
 
   Future<void> _signUp() async {
@@ -205,25 +223,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: RichText(
-                              text: const TextSpan(
-                                style: TextStyle(
+                              text: TextSpan(
+                                style: const TextStyle(
                                     fontSize: 13, color: Colors.black87),
                                 children: [
-                                  TextSpan(text: '18歳以上であり、'),
+                                  const TextSpan(text: '18歳以上であり、'),
                                   TextSpan(
                                     text: '利用規約',
-                                    style: TextStyle(
-                                        color: _primary,
-                                        fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      color: _primary,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    recognizer: _termsRecognizer,
                                   ),
-                                  TextSpan(text: ' および '),
+                                  const TextSpan(text: ' および '),
                                   TextSpan(
                                     text: 'プライバシーポリシー',
-                                    style: TextStyle(
-                                        color: _primary,
-                                        fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      color: _primary,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    recognizer: _privacyRecognizer,
                                   ),
-                                  TextSpan(text: ' に同意します'),
+                                  const TextSpan(text: ' に同意します'),
                                 ],
                               ),
                             ),
