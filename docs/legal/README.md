@@ -35,8 +35,8 @@
 | `[代表者氏名]` | 代表者の氏名 |
 | `[事業所所在地]` | 法人登記住所 or 事業所住所 |
 | `[電話番号]` | 連絡先電話番号 |
-| `[サポート用メールアドレス]` | `support@tsunagu.app` 等（ドメイン取得後） |
-| `[URL]` | `https://tsunagu.app` 等（ドメイン取得後） |
+| `[サポート用メールアドレス]` | `support@tsunagu-ai.app` 等（メアド設定完了後） |
+| `[URL]` | `https://tsunagu-ai.app`（取得済み・公開準備中） |
 | `[最低 OS バージョン]` | iOS 14 以上 / Android 8 以上 等（実機サポート範囲を確認） |
 
 ### 3. ストア審査用 URL の用意
@@ -46,9 +46,9 @@ App Store / Google Play 申請時には **プライバシーポリシーと利�
 ドメイン取得後、以下のような URL でアクセスできるようにしてください。
 
 ```
-https://tsunagu.app/legal/privacy
-https://tsunagu.app/legal/terms
-https://tsunagu.app/legal/tokushoho
+https://tsunagu-ai.app/legal/privacy-policy
+https://tsunagu-ai.app/legal/terms-of-service
+https://tsunagu-ai.app/legal/tokushoho
 ```
 
 候補としては:
