@@ -1,0 +1,167 @@
+/* TSUNAGU 法的文書共通スタイル */
+:root {
+  --tsunagu-vermillion: #E63946;
+  --tsunagu-black: #1A1A1A;
+  --tsunagu-grey: #6B6B6B;
+  --tsunagu-pale-grey: #E5E5E5;
+  --tsunagu-bg: #FAFAFA;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN',
+    'Hiragino Sans', 'Yu Gothic UI', 'Meiryo UI', sans-serif;
+  background: var(--tsunagu-bg);
+  color: var(--tsunagu-black);
+  line-height: 1.8;
+  font-size: 15px;
+}
+
+header.site-header {
+  background: var(--tsunagu-black);
+  color: white;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 3px solid var(--tsunagu-vermillion);
+}
+
+header.site-header a {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 4px;
+  font-size: 16px;
+}
+
+header.site-header .brand-mark {
+  color: var(--tsunagu-vermillion);
+  font-size: 12px;
+  letter-spacing: 3px;
+  margin-left: 6px;
+}
+
+main {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--tsunagu-vermillion);
+}
+
+h2 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 36px 0 12px;
+  padding-left: 12px;
+  border-left: 4px solid var(--tsunagu-vermillion);
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 24px 0 8px;
+  color: var(--tsunagu-black);
+}
+
+p, ul, ol {
+  margin: 0 0 14px;
+}
+
+ul, ol {
+  padding-left: 24px;
+}
+
+li {
+  margin-bottom: 4px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 24px;
+  font-size: 14px;
+}
+
+th, td {
+  border: 1px solid var(--tsunagu-pale-grey);
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #F0F0F0;
+  font-weight: 600;
+}
+
+blockquote {
+  border-left: 4px solid var(--tsunagu-vermillion);
+  background: #FFF5F5;
+  padding: 12px 18px;
+  margin: 16px 0;
+  color: #8A2A2F;
+  border-radius: 0 4px 4px 0;
+}
+
+blockquote.warning {
+  border-color: #D97706;
+  background: #FFF8EE;
+  color: #7A4A0F;
+}
+
+code {
+  background: #F0F0F0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.meta {
+  color: var(--tsunagu-grey);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+
+.meta strong {
+  color: var(--tsunagu-black);
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--tsunagu-grey);
+  font-size: 12px;
+  border-top: 1px solid var(--tsunagu-pale-grey);
+  background: white;
+}
+
+footer.site-footer a {
+  color: var(--tsunagu-grey);
+  margin: 0 8px;
+}
+
+@media print {
+  header.site-header { background: white; color: var(--tsunagu-black); }
+  header.site-header a { color: var(--tsunagu-black); }
+  body { background: white; font-size: 11pt; line-height: 1.6; }
+  main { max-width: 100%; padding: 0; }
+  blockquote { page-break-inside: avoid; }
+}

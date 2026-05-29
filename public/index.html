@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TSUNAGU — 日本限定マルチパーパス・コミュニケーションアプリ</title>
+  <meta name="description" content="TSUNAGU は恋愛・友達・仕事・学び・趣味の5カテゴリを切り替えて使える、日本限定のコミュニケーションアプリです。">
+  <meta name="theme-color" content="#E63946">
+  <link rel="stylesheet" href="/assets/legal.css">
+  <style>
+    .hero {
+      text-align: center;
+      padding: 80px 20px 40px;
+    }
+    .hero .logo {
+      font-size: 36px;
+      letter-spacing: 10px;
+      font-weight: 700;
+      color: var(--tsunagu-black);
+    }
+    .hero .tagline {
+      color: var(--tsunagu-vermillion);
+      font-size: 11px;
+      letter-spacing: 4px;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+    .hero .description {
+      margin: 32px auto 0;
+      max-width: 600px;
+      color: var(--tsunagu-grey);
+      line-height: 1.9;
+    }
+    .links {
+      max-width: 480px;
+      margin: 40px auto 0;
+      display: grid;
+      gap: 12px;
+    }
+    .link-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      background: white;
+      border: 1px solid var(--tsunagu-pale-grey);
+      border-radius: 4px;
+      text-decoration: none;
+      color: var(--tsunagu-black);
+      transition: border-color 0.15s;
+    }
+    .link-card:hover {
+      border-color: var(--tsunagu-vermillion);
+    }
+    .link-card .label {
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .link-card .arrow {
+      color: var(--tsunagu-vermillion);
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/">TSUNAGU</a><span class="brand-mark">CONNECT WITH PEOPLE IN JAPAN</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="logo">TSUNAGU</div>
+      <div class="tagline">CONNECT WITH PEOPLE IN JAPAN</div>
+      <p class="description">
+        TSUNAGU は、恋愛・友達・仕事・学び・趣味の5カテゴリを切り替えて使える、
+        日本限定のマルチパーパス・コミュニケーションアプリです。
+      </p>
+    </section>
+
+    <nav class="links" aria-label="法的文書">
+      <a class="link-card" href="/legal/privacy-policy.html">
+        <span class="label">プライバシーポリシー</span><span class="arrow">→</span>
+      </a>
+      <a class="link-card" href="/legal/terms-of-service.html">
+        <span class="label">利用規約</span><span class="arrow">→</span>
+      </a>
+      <a class="link-card" href="/legal/tokushoho.html">
+        <span class="label">特定商取引法に基づく表示</span><span class="arrow">→</span>
+      </a>
+    </nav>
+  </main>
+
+  <footer class="site-footer">
+    © 2026 TSUNAGU. All rights reserved.
+  </footer>
+</body>
+</html>
