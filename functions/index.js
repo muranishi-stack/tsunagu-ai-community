@@ -28,7 +28,8 @@ const LINE_CHANNEL_SECRET = defineSecret("LINE_CHANNEL_SECRET");
 
 // Gemini API キー（Secret Manager 管理。クライアントには出さない）
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-const GEMINI_MODEL = "gemini-2.0-flash";
+// 無料枠が安定している 1.5-flash を既定に（2.0-flash は free tier が 0 の場合あり）
+const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/" +
   GEMINI_MODEL +
@@ -316,9 +317,21 @@ exports.optimizeProfile = onRequest(
         );
       } catch (e) {
         const detail = e.response?.data || e.message;
+        const status = e.response?.status;
         logger.error("Gemini API call failed", detail);
+        // 利用上限(429)は分かりやすいメッセージに
+        let userMsg = "AI生成に失敗しました";
+        if (status === 429) {
+          userMsg =
+            "AIの利用上限に達しました。少し時間をおくか、Gemini APIの請求設定をご確認ください。";
+        } else if (status === 403) {
+          userMsg =
+            "AIキーの権限がありません。Generative Language API が有効か確認してください。";
+        } else if (status === 404) {
+          userMsg = "指定のAIモデルが見つかりません。";
+        }
         res.status(502).json({
-          error: "AI生成に失敗しました",
+          error: userMsg,
           detail: typeof detail === "string" ? detail : JSON.stringify(detail),
         });
         return;
