@@ -80,6 +80,43 @@ class UserService {
     await _auth.signOut();
   }
 
+  /// アカウントを完全削除する。
+  ///
+  /// Firestore の自分のユーザー doc を削除したあと、Firebase Auth から
+  /// 自分自身を削除する。Auth 削除でセッションが切れ、AuthGate が
+  /// ログイン画面へ自動遷移する。
+  ///
+  /// 失敗時の挙動:
+  /// - `FirebaseAuthException(code: 'requires-recent-login')` を投げる
+  ///   場合がある。最後のログインから時間が経つと Auth 削除に再認証が
+  ///   必要なため、呼び出し側で再ログイン誘導するか案内する。
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('No signed-in user to delete.');
+    }
+    final uid = user.uid;
+
+    // 1. Firestore の自ドキュメントを削除
+    //    関連コレクション (swipes / matches / transactions / reports / chats)
+    //    のフルクリーンアップは、セキュリティルールと再帰削除の事情で
+    //    Cloud Function に委ねるのが安全。ここでは self-document のみ削除し、
+    //    残りは別途 onUserDelete トリガーで処理する想定。
+    try {
+      await _users.doc(uid).delete();
+    } catch (_) {
+      // Firestore 削除が失敗しても Auth 削除は試みる
+    }
+
+    // 2. Firebase Auth アカウントを削除（要 recent sign-in）
+    await user.delete();
+
+    // 3. 念のため Google からもログアウト
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+  }
+
   /// パスワードリセットメール送信
   Future<void> sendPasswordResetEmail(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());

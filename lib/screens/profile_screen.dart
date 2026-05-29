@@ -1,4 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../constants/legal_urls.dart';
 import '../data/app_version.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tsunagu_logo.dart';
@@ -25,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _svc = UserService();
   UserProfile? _profile;
   bool _signingOut = false;
+  bool _deletingAccount = false;
 
   @override
   void initState() {
@@ -80,6 +84,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _signingOut = false);
+    }
+  }
+
+  // ─── Legal URLs ──────────────────────────────────────────────────
+  Future<void> _openExternal(String url) async {
+    final uri = Uri.parse(url);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('リンクを開けませんでした')),
+      );
+    }
+  }
+
+  // ─── Account deletion ────────────────────────────────────────────
+  Future<void> _confirmDeleteAccount() async {
+    final controller = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool enabled = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('アカウントを削除しますか?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'この操作は取り消せません。プロフィール・写真・マッチ・メッセージ等、'
+                  'アカウントに紐づくすべてのデータが削除されます。',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  '続行するには下の欄に「削除」と入力してください。',
+                  style: TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    hintText: '削除',
+                  ),
+                  onChanged: (v) =>
+                      setLocal(() => enabled = v.trim() == '削除'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed:
+                    enabled ? () => Navigator.pop(ctx, true) : null,
+                child: const Text('削除する',
+                    style: TextStyle(color: Colors.redAccent)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _deletingAccount = true);
+    try {
+      await _svc.deleteAccount();
+      // AuthGate がログイン画面に自動遷移する
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final msg = e.code == 'requires-recent-login'
+          ? 'セキュリティのため、一度ログインし直してから再度削除してください。'
+          : 'アカウントの削除に失敗しました: ${e.message ?? e.code}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('アカウントの削除に失敗しました: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
     }
   }
 
@@ -241,8 +331,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () => _showThemePicker(context),
                 ),
                 _MenuItem(Icons.notifications_none, '通知設定', onTap: () {}),
-                _MenuItem(Icons.lock_outline, 'プライバシー', onTap: () {}),
                 _MenuItem(Icons.help_outline, 'ヘルプ・サポート', onTap: () {}),
+              ]),
+              _buildMenuSection('LEGAL', [
+                _MenuItem(Icons.gavel_outlined, '利用規約',
+                    onTap: () => _openExternal(LegalUrls.termsOfService)),
+                _MenuItem(Icons.lock_outline, 'プライバシーポリシー',
+                    onTap: () => _openExternal(LegalUrls.privacyPolicy)),
+                _MenuItem(Icons.receipt_long_outlined, '特定商取引法に基づく表示',
+                    onTap: () => _openExternal(LegalUrls.tokushoho)),
               ]),
               const SizedBox(height: 24),
               Padding(
@@ -279,7 +376,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed:
+                        _deletingAccount ? null : _confirmDeleteAccount,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: _deletingAccount
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation(Colors.redAccent),
+                            ),
+                          )
+                        : const Text(
+                            'アカウントを削除する',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               Center(
                 child: Text(
                   'TSUNAGU · ${AppVersion.fullLabel}',
