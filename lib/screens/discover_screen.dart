@@ -198,14 +198,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     super.dispose();
   }
 
-  void _onPanUpdate(DragUpdateDetails details, Size size) {
-    setState(() {
-      _isDragging = true;
-      _dragOffset += details.delta;
-      _dragAngle = (_dragOffset.dx / size.width) * 0.4;
-    });
-  }
-
   void _onPanEnd(DragEndDetails details, Size size) {
     final dx = _dragOffset.dx;
     final threshold = size.width * 0.3;
@@ -590,18 +582,23 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                             ? _buildEmptyState()
                             : Stack(
                                 alignment: Alignment.center,
+                                fit: StackFit.expand,
                                 children: [
                                   if (_profiles.length > 1)
-                                    _buildCard(
-                                      _profiles[(_currentIndex + 1) %
-                                          _profiles.length],
-                                      scale: 0.95,
-                                      isBackground: true,
+                                    Positioned.fill(
+                                      child: _buildCard(
+                                        _profiles[(_currentIndex + 1) %
+                                            _profiles.length],
+                                        scale: 0.95,
+                                        isBackground: true,
+                                      ),
                                     ),
-                                  _buildSwipeableCard(
-                                      _profiles[
-                                          _currentIndex % _profiles.length],
-                                      size),
+                                  Positioned.fill(
+                                    child: _buildSwipeableCard(
+                                        _profiles[
+                                            _currentIndex % _profiles.length],
+                                        size),
+                                  ),
                                 ],
                               ),
               ),
@@ -826,23 +823,43 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   }
 
   Widget _buildSwipeableCard(UserProfile profile, Size size) {
-    return Transform.translate(
-      offset: _dragOffset,
-      child: Transform.rotate(
-        angle: _dragAngle,
-        child: GestureDetector(
-          onPanUpdate: (details) => _onPanUpdate(details, size),
-          onPanEnd: (details) => _onPanEnd(details, size),
-          onTap: () {
-            if (!_isDragging) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProfileDetailScreen(profile: profile),
-                ),
-              );
-            }
-          },
+    // ジェスチャーが外側にあることでカードがドラッグから逃げてもイベントが切れない
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // 横方向のドラッグを優先 (縦スクロールの干渉を防ぐ)
+      onHorizontalDragStart: (_) {
+        setState(() {
+          _isDragging = true;
+        });
+      },
+      onHorizontalDragUpdate: (details) {
+        setState(() {
+          _isDragging = true;
+          _dragOffset += Offset(details.delta.dx, details.delta.dy * 0.3);
+          _dragAngle = (_dragOffset.dx / size.width) * 0.4;
+        });
+      },
+      onHorizontalDragEnd: (details) => _onPanEnd(
+        DragEndDetails(velocity: details.velocity),
+        size,
+      ),
+      onHorizontalDragCancel: () {
+        _resetCard();
+      },
+      onTap: () {
+        if (_dragOffset.distance < 5 && !_isDragging) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProfileDetailScreen(profile: profile),
+            ),
+          );
+        }
+      },
+      child: Transform.translate(
+        offset: _dragOffset,
+        child: Transform.rotate(
+          angle: _dragAngle,
           child: _buildCard(profile),
         ),
       ),
