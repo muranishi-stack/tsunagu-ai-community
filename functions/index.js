@@ -28,8 +28,8 @@ const LINE_CHANNEL_SECRET = defineSecret("LINE_CHANNEL_SECRET");
 
 // Gemini API キー（Secret Manager 管理。クライアントには出さない）
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-// 無料枠が安定している 1.5-flash を既定に（2.0-flash は free tier が 0 の場合あり）
-const GEMINI_MODEL = "gemini-1.5-flash";
+// 最新世代の高速モデル（従量課金で潤沢なクォータ）
+const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/" +
   GEMINI_MODEL +
@@ -308,6 +308,8 @@ exports.optimizeProfile = onRequest(
             generationConfig: {
               temperature: 0.7,
               responseMimeType: "application/json",
+              // 単純な整形タスクなので thinking を無効化（高速・低コスト）
+              thinkingConfig: { thinkingBudget: 0 },
             },
           },
           {
