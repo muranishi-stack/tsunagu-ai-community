@@ -9,6 +9,7 @@ import '../services/ai_matching_service.dart';
 import '../services/user_service.dart';
 import '../utils/distance_util.dart';
 import '../services/super_like_service.dart';
+import 'settings/notification_settings_screen.dart';
 import '../services/subscription_service.dart';
 import 'profile_detail_screen.dart';
 import 'subscription_screen.dart';
@@ -33,6 +34,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   bool _loading = true;
   String? _loadError;
   Set<String> _swipedUids = {};
+  Set<String> _blockedUids = {};
 
   // Phase 1.11.9: Listener ベースのドラッグ状態 (iOS Safari 対応)
   Offset? _pointerStartPos;
@@ -82,11 +84,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       if (currentUid == null) {
         throw Exception('ログインが必要です');
       }
-      // 既にスワイプ済みのユーザーは除外
+      // 既にスワイプ済み / ブロック済みのユーザーは除外
       _swipedUids = await _userSvc.getSwipedUids(currentUid);
+      _blockedUids = await _userSvc.getBlockedUids();
       final users = await _userSvc.discoverUsers(
         currentUid: currentUid,
-        excludeUids: _swipedUids,
+        excludeUids: {..._swipedUids, ..._blockedUids},
         limit: 100,
       );
       setState(() {
@@ -107,7 +110,10 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     List<UserProfile> filtered = List.from(_allProfiles);
 
     // 0. スワイプ済みユーザーを除外 (Phase 1.11.9)
-    filtered = filtered.where((p) => !_swipedUids.contains(p.id)).toList();
+    filtered = filtered
+        .where((p) =>
+            !_swipedUids.contains(p.id) && !_blockedUids.contains(p.id))
+        .toList();
 
     // 1. カテゴリフィルター
     final category = _selectedCategory;
@@ -838,7 +844,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         // HIGHLIGHTボタンはCONNECTIONS画面に移設済み
         IconButton(
           icon: const Icon(Icons.notifications_none_outlined, size: 22),
-          onPressed: () {},
+          tooltip: '通知設定',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => const NotificationSettingsScreen()),
+          ),
         ),
       ],
     );

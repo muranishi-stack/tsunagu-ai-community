@@ -95,6 +95,38 @@ class AppTheme {
         color: black,
         size: 24,
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: offWhite,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: const TextStyle(color: lightGrey, fontSize: 15),
+        labelStyle: const TextStyle(color: darkGrey, fontSize: 15),
+        floatingLabelStyle: const TextStyle(
+            color: vermillion, fontSize: 14, fontWeight: FontWeight.w600),
+        prefixIconColor: grey,
+        suffixIconColor: grey,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: paleGrey, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: paleGrey, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: vermillion, width: 1.8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE53935), width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE53935), width: 1.8),
+        ),
+      ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: white,
         selectedItemColor: vermillion,
@@ -237,6 +269,38 @@ class AppTheme {
       iconTheme: const IconThemeData(
         color: darkText,
         size: 24,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurfaceVariant,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: const TextStyle(color: darkTextTertiary, fontSize: 15),
+        labelStyle: const TextStyle(color: darkTextSecondary, fontSize: 15),
+        floatingLabelStyle: const TextStyle(
+            color: vermillionLight, fontSize: 14, fontWeight: FontWeight.w600),
+        prefixIconColor: darkTextTertiary,
+        suffixIconColor: darkTextTertiary,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: darkBorder, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: darkBorder, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: vermillionLight, width: 1.8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFEF5350), width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFEF5350), width: 1.8),
+        ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: darkSurface,

@@ -4,6 +4,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
 import '../../data/app_version.dart';
 import '../../services/line_auth_service.dart';
 import '../../services/user_service.dart';
@@ -135,6 +136,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ログイン画面は白基調デザインのため、端末がダークモードでも
+    // 常にライトテーマで描画する（入力欄も明るい塗りで統一）。
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -203,8 +213,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       autofillHints: const [AutofillHints.email],
                       decoration: const InputDecoration(
                         labelText: 'メールアドレス',
+                        hintText: 'you@example.com',
                         prefixIcon: Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(),
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) {
@@ -223,6 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       autofillHints: const [AutofillHints.password],
                       decoration: InputDecoration(
                         labelText: 'パスワード',
+                        hintText: '6文字以上',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(_obscure
@@ -231,7 +242,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: () =>
                               setState(() => _obscure = !_obscure),
                         ),
-                        border: const OutlineInputBorder(),
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) {

@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'services/theme_service.dart';
+import 'services/notification_preferences.dart';
 import 'services/super_like_service.dart';
 import 'services/line_auth_service.dart';
 import 'screens/auth/auth_gate.dart';
@@ -43,6 +44,9 @@ Future<void> main() async {
 
   // Initialize ThemeService (load saved theme mode)
   await ThemeService().init();
+
+  // Initialize NotificationPreferences (load saved toggles)
+  await NotificationPreferences().init();
 
   // Initialize SuperLikeService (load monthly quota)
   await SuperLikeService().initialize();
