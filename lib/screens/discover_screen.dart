@@ -34,6 +34,10 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   String? _loadError;
   Set<String> _swipedUids = {};
 
+  // Phase 1.11.9: Listener ベースのドラッグ状態 (iOS Safari 対応)
+  Offset? _pointerStartPos;
+  Offset _pointerAccumDelta = Offset.zero;
+
   late AnimationController _animController;
   Animation<Offset>? _animation;
   final _prefs = UserPreferences();
@@ -102,6 +106,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   void _applyFilters() {
     List<UserProfile> filtered = List.from(_allProfiles);
 
+    // 0. スワイプ済みユーザーを除外 (Phase 1.11.9)
+    filtered = filtered.where((p) => !_swipedUids.contains(p.id)).toList();
+
     // 1. カテゴリフィルター
     final category = _selectedCategory;
     if (category != null) {
@@ -124,10 +131,14 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     }
 
     // 2.3 年齢フィルター
-    filtered = filtered
-        .where((p) =>
-            p.age >= _prefs.filterMinAge && p.age <= _prefs.filterMaxAge)
-        .toList();
+    // Phase 1.11.9: ユーザーが明示的にカスタマイズした場合のみ適用する。
+    // 初期表示で年齢±5に勝手に絞られて 0人になるケースを防ぐ。
+    if (_prefs.hasActiveAgeFilter) {
+      filtered = filtered
+          .where((p) =>
+              p.age >= _prefs.filterMinAge && p.age <= _prefs.filterMaxAge)
+          .toList();
+    }
 
     // 2.5 距離フィルター (Choice B: lat/lng 未保存ユーザーは完全非表示)
     final maxKm = _prefs.filterMaxDistanceKm;
@@ -198,17 +209,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     super.dispose();
   }
 
-  void _onPanEnd(Size size) {
-    final dx = _dragOffset.dx;
-    final threshold = size.width * 0.25; // 緩めの閾値
-
-    if (dx.abs() > threshold) {
-      _swipeCard(dx > 0, size);
-    } else {
-      _resetCard();
-    }
-  }
-
   void _swipeCard(bool isLike, Size size, {bool isSuperLike = false}) {
     final endX = isLike ? size.width * 1.5 : -size.width * 1.5;
     _animation = Tween<Offset>(
@@ -220,71 +220,90 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     ));
 
     _animation!.addListener(() {
+      if (!mounted) return;
       setState(() {
         _dragOffset = _animation!.value;
         _dragAngle = (_dragOffset.dx / size.width) * 0.4;
       });
     });
 
-    _animController.forward(from: 0).then((_) async {
-      // Firestoreにスワイプ記録 + 相互Like判定
-      String? matchedId;
-      UserProfile? swipedProfile;
-      int? swipedIdx;
-      if (_profiles.isNotEmpty) {
-        swipedIdx = _currentIndex % _profiles.length;
-        swipedProfile = _profiles[swipedIdx];
-        final myUid = _userSvc.currentUid;
-        if (myUid != null) {
-          try {
-            matchedId = await _userSvc.recordSwipe(
-              fromUid: myUid,
-              toUid: swipedProfile.id,
-              liked: isLike,
-              isSuperLike: isSuperLike,
-            );
-            _swipedUids.add(swipedProfile.id);
-          } catch (e) {
-            // 記録失敗してもUIは進める
-            debugPrint('recordSwipe error: $e');
-          }
+    // Phase 1.11.9: iOS Safari + CanvasKit で .then() コールバックが
+    // 発火しない問題を回避するため AnimationStatusListener を使用。
+    // 完了処理を同期的に登録し、アニメ完了 = カード進行を保証する。
+    late final AnimationStatusListener statusListener;
+    statusListener = (AnimationStatus status) {
+      if (status == AnimationStatus.completed) {
+        _animController.removeStatusListener(statusListener);
+        _onSwipeAnimationComplete(isLike, isSuperLike);
+      }
+    };
+    _animController.addStatusListener(statusListener);
+    _animController.forward(from: 0);
+  }
+
+  /// _swipeCard のアニメーション完了時のハンドラ
+  /// Phase 1.11.9: Future.then から分離して iOS Safari 互換性を確保
+  void _onSwipeAnimationComplete(bool isLike, bool isSuperLike) {
+    if (!mounted) return;
+
+    // どのプロフィールがスワイプされたか確定
+    UserProfile? swipedProfile;
+    int? swipedIdx;
+    if (_profiles.isNotEmpty) {
+      swipedIdx = _currentIndex % _profiles.length;
+      swipedProfile = _profiles[swipedIdx];
+    }
+
+    // UI を先に進める (Firestore は非同期で記録)
+    setState(() {
+      if (swipedProfile != null && swipedIdx != null) {
+        _swipeHistory.add(_SwipeHistoryEntry(
+          profile: swipedProfile,
+          isLike: isLike,
+          isSuperLike: isSuperLike,
+          insertIndex: swipedIdx,
+        ));
+        if (_swipeHistory.length > 10) {
+          _swipeHistory.removeAt(0);
+        }
+        _swipedUids.add(swipedProfile.id);
+
+        // List 参照を置き換えて確実に再描画
+        final newProfiles = List<UserProfile>.from(_profiles);
+        newProfiles.removeAt(swipedIdx);
+        _profiles = newProfiles;
+        if (_profiles.isEmpty) {
+          _currentIndex = 0;
+        } else {
+          _currentIndex %= _profiles.length;
         }
       }
-      if (!mounted) return;
-      setState(() {
-        if (isLike) {
-          _showMatchAnimation(
-            matchedId: matchedId,
-            isSuperLike: isSuperLike,
-          );
-        }
-        // 履歴に積む（Rewind用）
-        if (swipedProfile != null && swipedIdx != null) {
-          _swipeHistory.add(_SwipeHistoryEntry(
-            profile: swipedProfile,
-            isLike: isLike,
-            isSuperLike: isSuperLike,
-            insertIndex: swipedIdx,
-          ));
-          // 最大10件まで保持
-          if (_swipeHistory.length > 10) {
-            _swipeHistory.removeAt(0);
-          }
-        }
-        // スワイプ済みリストから削除
-        if (_profiles.isNotEmpty) {
-          _profiles.removeAt(_currentIndex % _profiles.length);
-          if (_profiles.isEmpty) {
-            _currentIndex = 0;
-          } else {
-            _currentIndex %= _profiles.length;
-          }
-        }
-        _dragOffset = Offset.zero;
-        _dragAngle = 0;
-        _isDragging = false;
-      });
+      _dragOffset = Offset.zero;
+      _dragAngle = 0;
+      _isDragging = false;
     });
+
+    // Firestore 書き込みは非同期で実行
+    if (swipedProfile != null) {
+      final myUid = _userSvc.currentUid;
+      if (myUid != null) {
+        _userSvc.recordSwipe(
+          fromUid: myUid,
+          toUid: swipedProfile.id,
+          liked: isLike,
+          isSuperLike: isSuperLike,
+        ).then((matchedId) {
+          if (isLike && mounted) {
+            _showMatchAnimation(
+              matchedId: matchedId,
+              isSuperLike: isSuperLike,
+            );
+          }
+        }).catchError((e) {
+          debugPrint('recordSwipe error: $e');
+        });
+      }
+    }
   }
 
   /// Rewind: 直前のスワイプを取り消す（プレミアム限定機能）
@@ -545,7 +564,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     );
   }
 
+  /// ATTACK/SKIPボタンの共通ハンドラ (Phase 1.11.2 互換)
   void _handleActionButton(bool isLike) {
+    if (_profiles.isEmpty) return;
     final size = MediaQuery.of(context).size;
     setState(() {
       _dragOffset = Offset(isLike ? 50 : -50, 0);
@@ -582,10 +603,10 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                             ? _buildEmptyState()
                             : Stack(
                                 alignment: Alignment.center,
-                                fit: StackFit.expand,
                                 children: [
                                   if (_profiles.length > 1)
-                                    Positioned.fill(
+                                    KeyedSubtree(
+                                      key: ValueKey('bg_${_profiles[(_currentIndex + 1) % _profiles.length].id}'),
                                       child: _buildCard(
                                         _profiles[(_currentIndex + 1) %
                                             _profiles.length],
@@ -593,7 +614,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                                         isBackground: true,
                                       ),
                                     ),
-                                  Positioned.fill(
+                                  KeyedSubtree(
+                                    key: ValueKey('fg_${_profiles[_currentIndex % _profiles.length].id}'),
                                     child: _buildSwipeableCard(
                                         _profiles[
                                             _currentIndex % _profiles.length],
@@ -822,57 +844,71 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     );
   }
 
-  // Listener ベースで生のPointerEventを直接処理
-  // Flutter Web のスマホで確実に動く方式
-  Offset? _pointerStart;
-  bool _dragStarted = false;
-
   Widget _buildSwipeableCard(UserProfile profile, Size size) {
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (event) {
-        _pointerStart = event.position;
-        _dragStarted = false;
-      },
-      onPointerMove: (event) {
-        if (_pointerStart == null) return;
-        final delta = event.position - _pointerStart!;
-        // 5px以上動いたらドラッグ開始
-        if (!_dragStarted && delta.distance > 5) {
-          _dragStarted = true;
-          setState(() => _isDragging = true);
-        }
-        if (_dragStarted) {
-          setState(() {
-            _dragOffset = Offset(delta.dx, delta.dy * 0.3);
-            _dragAngle = (_dragOffset.dx / size.width) * 0.4;
-          });
-        }
-      },
-      onPointerUp: (event) {
-        if (_dragStarted) {
-          _onPanEnd(size);
-        } else {
-          // タップ扱い → プロフィール詳細へ
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProfileDetailScreen(profile: profile),
-            ),
-          );
-        }
-        _pointerStart = null;
-        _dragStarted = false;
-      },
-      onPointerCancel: (_) {
-        if (_dragStarted) _resetCard();
-        _pointerStart = null;
-        _dragStarted = false;
-      },
-      child: Transform.translate(
-        offset: _dragOffset,
-        child: Transform.rotate(
-          angle: _dragAngle,
+    // Phase 1.11.9: iOS Safari でドラッグジェスチャーを確実に拾うため
+    // Listener (Pointer) ベースのドラッグ実装に切り替え。
+    // GestureDetector の Pan は iOS Safari + CanvasKit で拾えない場合があるが、
+    // Listener の onPointerMove は確実に動作する。
+    return Transform.translate(
+      offset: _dragOffset,
+      child: Transform.rotate(
+        angle: _dragAngle,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: (event) {
+            _pointerStartPos = event.position;
+            _pointerAccumDelta = Offset.zero;
+            _isDragging = false;
+          },
+          onPointerMove: (event) {
+            if (_pointerStartPos == null) return;
+            final delta = event.position - _pointerStartPos!;
+            _pointerAccumDelta = delta;
+            // 8px 以上動いたらドラッグ確定
+            if (!_isDragging && delta.distance > 8) {
+              setState(() {
+                _isDragging = true;
+              });
+            }
+            if (_isDragging) {
+              setState(() {
+                _dragOffset = delta;
+                _dragAngle = (delta.dx / size.width) * 0.4;
+              });
+            }
+          },
+          onPointerUp: (event) {
+            final startPos = _pointerStartPos;
+            final accumDelta = _pointerAccumDelta;
+            _pointerStartPos = null;
+            if (startPos == null) return;
+
+            if (_isDragging) {
+              // ドラッグ完了処理
+              final dx = accumDelta.dx;
+              final threshold = size.width * 0.3;
+              if (dx.abs() > threshold) {
+                _swipeCard(dx > 0, size);
+              } else {
+                _resetCard();
+              }
+              // _isDragging のリセットは _swipeCard/_resetCard 内で行う
+            } else {
+              // 動いていない = タップ扱い
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfileDetailScreen(profile: profile),
+                ),
+              );
+            }
+          },
+          onPointerCancel: (event) {
+            _pointerStartPos = null;
+            if (_isDragging) {
+              _resetCard();
+            }
+          },
           child: _buildCard(profile),
         ),
       ),
@@ -910,6 +946,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                 // Photo
                 Image.network(
                   profile.photos.first,
+                  key: ValueKey('img_${profile.id}'),
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
@@ -1265,83 +1302,96 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     Color? counterColor,
     bool lockBadge = false,
   }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.surface(context),
-              border: Border.all(
+    // Phase 1.11.9: ヒットテスト問題を解決するため Material + InkWell に変更
+    // Stack(clipBehavior: Clip.none) + Positioned バッジが GestureDetector の
+    // ヒットテストを阻害していた問題を修正
+    return SizedBox(
+      width: size + 12, // バッジ分の余裕を含む明示的サイズ
+      height: size + 12,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // メインボタン本体（Material + InkWell で確実なタップ処理）
+          Material(
+            color: AppTheme.surface(context),
+            shape: CircleBorder(
+              side: BorderSide(
                 color: iconColor.withValues(alpha: 0.4),
                 width: 1.0,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(
-                    alpha: AppTheme.isDark(context) ? 0.4 : 0.08,
+            ),
+            elevation: AppTheme.isDark(context) ? 4 : 2,
+            shadowColor: Colors.black.withValues(
+              alpha: AppTheme.isDark(context) ? 0.4 : 0.2,
+            ),
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const CircleBorder(),
+              child: SizedBox(
+                width: size,
+                height: size,
+                child: Icon(icon, size: iconSize, color: iconColor),
+              ),
+            ),
+          ),
+          // SuperLike残数バッジ（IgnorePointer でタップを透過）
+          if (counterBadge != null)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(icon, size: iconSize, color: iconColor),
-          ),
-        ),
-        // SuperLike残数バッジ
-        if (counterBadge != null)
-          Positioned(
-            top: -4,
-            right: -4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: counterColor ?? AppTheme.vermillion,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppTheme.surface(context),
-                  width: 1.5,
-                ),
-              ),
-              child: Text(
-                '$counterBadge',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+                  decoration: BoxDecoration(
+                    color: counterColor ?? AppTheme.vermillion,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppTheme.surface(context),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    '$counterBadge',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        // Rewind鍵バッジ（プレミアム限定表示）
-        if (lockBadge)
-          Positioned(
-            top: -2,
-            right: -2,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                color: AppTheme.gold,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.surface(context),
-                  width: 1.5,
+          // Rewind鍵バッジ（プレミアム限定表示、IgnorePointer でタップを透過）
+          if (lockBadge)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: IgnorePointer(
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: AppTheme.gold,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.surface(context),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.lock,
+                    size: 10,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              child: const Icon(
-                Icons.lock,
-                size: 10,
-                color: Colors.white,
-              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

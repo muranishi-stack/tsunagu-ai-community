@@ -35,10 +35,11 @@ class UserPreferences extends ChangeNotifier {
   String? filterTrainLine;  // null = すべて
 
   /// 距離フィルター: 何km以内のユーザーのみ表示するか
-  /// null = 距離無制限
+  /// null = 距離無制限 (デフォルト)
   /// 値あり = lat/lng 未保存ユーザーは非表示 (Choice B)
-  /// デフォルト 25km (Choice A)
-  double? filterMaxDistanceKm = 25.0;
+  /// Phase 1.11.9: デフォルトを 25km → null (無制限) に変更
+  /// 理由: 初回表示で 0人になるケースを防ぎ、ユーザーが任意で距離を絞る形へ
+  double? filterMaxDistanceKm;
 
   /// 年齢フィルター: 表示する相手の最小年齢
   /// デフォルトは自分の年齢 -5 歳（initAgeFilterFromMyAge() で初期化）

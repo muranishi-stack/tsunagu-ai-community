@@ -32,6 +32,18 @@
       height: 100%;
       background: #1A1A1A;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      /* iOS Safari でスワイプジェスチャーを Flutter に優先させる */
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: auto;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      touch-action: pan-y;
+    }
+
+    /* Flutter のレンダリングコンテナ */
+    flt-glass-pane, flutter-view {
+      touch-action: none !important;
     }
 
     /* Splash screen shown until Flutter loads */
@@ -113,6 +125,8 @@
         }
       });
     }
+
+
   </script>
 </head>
 <body>
