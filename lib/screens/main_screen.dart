@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'discover_screen.dart';
+import 'action_screen.dart';
 import 'matches_screen.dart';
-import 'ai_assistant_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -17,8 +17,8 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = const [
     DiscoverScreen(),
+    ActionScreen(),
     MatchesScreen(),
-    AIAssistantScreen(),
     ProfileScreen(),
   ];
 
@@ -38,10 +38,13 @@ class _MainScreenState extends State<MainScreen> {
             height: 60,
             child: Row(
               children: [
-                _buildNavItem(0, Icons.style_outlined, Icons.style, 'DISCOVER'),
-                _buildNavItem(1, Icons.favorite_border, Icons.favorite, 'MATCHES'),
-                _buildNavItem(2, Icons.auto_awesome_outlined, Icons.auto_awesome, 'AI'),
-                _buildNavItem(3, Icons.person_outline, Icons.person, 'PROFILE'),
+                _buildNavItem(0, Icons.search, Icons.search, 'さがす'),
+                _buildNavItem(
+                    1, Icons.bolt_outlined, Icons.bolt, 'アクション'),
+                _buildNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble,
+                    'マッチ'),
+                _buildNavItem(
+                    3, Icons.settings_outlined, Icons.settings, '設定'),
               ],
             ),
           ),
@@ -52,8 +55,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
     final isActive = _currentIndex == index;
-    final activeColor =
-        index == 2 ? AppTheme.gold : AppTheme.textPrimary(context);
+    final activeColor = AppTheme.vermillion;
     final inactiveColor = AppTheme.textTertiary(context);
     return Expanded(
       child: InkWell(
@@ -70,9 +72,9 @@ class _MainScreenState extends State<MainScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 9,
-                letterSpacing: 1.5,
-                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                fontSize: 10,
+                letterSpacing: 0.3,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive ? activeColor : inactiveColor,
               ),
             ),

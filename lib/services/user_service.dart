@@ -142,6 +142,67 @@ class UserService {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // ACTION 画面 (あなたへのいいね / 送ったいいね)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// 自分にいいね/つなぐ をくれた相手のプロフィール一覧。
+  /// 既に自分がスワイプ済み（=マッチor自分でスキップ済み）/ブロック済みは除外。
+  Future<List<UserProfile>> getLikesReceived() async {
+    final uid = currentUid;
+    if (uid == null) return [];
+    try {
+      final snap = await _users
+          .doc(uid)
+          .collection('likes_received')
+          .orderBy('created_at', descending: true)
+          .limit(100)
+          .get();
+      final swiped = await getSwipedUids(uid);
+      final blocked = await getBlockedUids();
+      final fromUids = snap.docs
+          .map((d) => (d.data()['from_uid'] as String?) ?? d.id)
+          .where((id) => !swiped.contains(id) && !blocked.contains(id))
+          .toList();
+      return _fetchProfiles(fromUids);
+    } catch (e) {
+      if (kDebugMode) debugPrint('getLikesReceived error: $e');
+      return [];
+    }
+  }
+
+  /// 自分が「いいね/つなぐ」を送った相手のプロフィール一覧（マッチ済みは除外）。
+  Future<List<UserProfile>> getMyLikes() async {
+    final uid = currentUid;
+    if (uid == null) return [];
+    try {
+      final snap = await _swipes
+          .where('from_uid', isEqualTo: uid)
+          .where('liked', isEqualTo: true)
+          .limit(200)
+          .get();
+      final matchedPeers = (await getMatches(uid))
+          .expand((m) => ((m['uids'] as List?) ?? const []))
+          .map((e) => e.toString())
+          .where((id) => id != uid)
+          .toSet();
+      final toUids = snap.docs
+          .map((d) => (d.data()['to_uid'] as String?) ?? '')
+          .where((id) => id.isNotEmpty && !matchedPeers.contains(id))
+          .toList();
+      return _fetchProfiles(toUids);
+    } catch (e) {
+      if (kDebugMode) debugPrint('getMyLikes error: $e');
+      return [];
+    }
+  }
+
+  /// UID リストからプロフィールをまとめて取得（存在するものだけ）。
+  Future<List<UserProfile>> _fetchProfiles(List<String> uids) async {
+    final results = await Future.wait(uids.map((id) => getProfile(id)));
+    return results.whereType<UserProfile>().toList();
+  }
+
   /// Googleアカウントでサインイン
   /// プラットフォームに応じて適切な認証フローを使用
   Future<UserCredential?> signInWithGoogle() async {
@@ -352,6 +413,20 @@ class UserService {
       'created_at': FieldValue.serverTimestamp(),
     });
 
+    // いいね/つなぐ の場合、相手の likes_received に記録
+    // （相手が「アクション」画面で誰からいいねされたか確認できる）
+    if (liked) {
+      await _users
+          .doc(toUid)
+          .collection('likes_received')
+          .doc(fromUid)
+          .set({
+        'from_uid': fromUid,
+        'is_super_like': isSuperLike,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    }
+
     // Super Like の場合、相手の通知コレクションに記録
     if (isSuperLike && liked) {
       await _db
@@ -401,6 +476,13 @@ class UserService {
     final swipeId = '${fromUid}_$toUid';
     // Swipeレコード削除
     await _swipes.doc(swipeId).delete();
+    // likes_received も削除
+    await _users
+        .doc(toUid)
+        .collection('likes_received')
+        .doc(fromUid)
+        .delete()
+        .catchError((_) {});
     // Matchがあれば削除
     final matchId = _matchId(fromUid, toUid);
     await _matches.doc(matchId).delete().catchError((_) {});
