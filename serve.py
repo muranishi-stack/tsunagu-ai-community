@@ -9,7 +9,7 @@ import socketserver
 import os
 import sys
 
-PORT = 5060
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5070
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build', 'web')
 
 

@@ -260,17 +260,31 @@ class AdminService extends ChangeNotifier {
     final pending =
         _reports.where((r) => r.status == ReportStatus.pending).length;
 
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final newToday =
+        _users.where((u) => u.joinedAt.isAfter(todayStart)).length;
+
+    // 直近24h で完了した boost (24時間アプローチ強化) の数
+    final activeBoostCount = _revenues
+        .where((r) =>
+            r.status == TransactionStatus.completed &&
+            r.planType == PlanType.boost &&
+            r.date.isAfter(now.subtract(const Duration(days: 1))))
+        .length;
+
     return DashboardKPI(
       totalUsers: _users.length,
       activeUsersMau: (activeUsers * 0.72).round(),
       activeUsersDau: (activeUsers * 0.24).round(),
-      newUsersToday: 18,
+      newUsersToday: newToday,
       monthlyRecurringRevenue: mrr,
       totalRevenue30d: monthlyRevenue,
       churnRate: 4.8,
+      // TODO: matches コレクションを fetch して 30日件数を集計
       totalMatches30d: 12_847,
       activeSubscriptions: activeSubs,
-      activeBoosts: 47,
+      activeBoosts: activeBoostCount,
       conversionRate: conversion,
       pendingReports: pending,
     );
