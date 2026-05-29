@@ -198,9 +198,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     super.dispose();
   }
 
-  void _onPanEnd(DragEndDetails details, Size size) {
+  void _onPanEnd(Size size) {
     final dx = _dragOffset.dx;
-    final threshold = size.width * 0.3;
+    final threshold = size.width * 0.25; // 緩めの閾値
 
     if (dx.abs() > threshold) {
       _swipeCard(dx > 0, size);
@@ -822,32 +822,38 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     );
   }
 
+  // Listener ベースで生のPointerEventを直接処理
+  // Flutter Web のスマホで確実に動く方式
+  Offset? _pointerStart;
+  bool _dragStarted = false;
+
   Widget _buildSwipeableCard(UserProfile profile, Size size) {
-    // ジェスチャーが外側にあることでカードがドラッグから逃げてもイベントが切れない
-    return GestureDetector(
+    return Listener(
       behavior: HitTestBehavior.opaque,
-      // 横方向のドラッグを優先 (縦スクロールの干渉を防ぐ)
-      onHorizontalDragStart: (_) {
-        setState(() {
-          _isDragging = true;
-        });
+      onPointerDown: (event) {
+        _pointerStart = event.position;
+        _dragStarted = false;
       },
-      onHorizontalDragUpdate: (details) {
-        setState(() {
-          _isDragging = true;
-          _dragOffset += Offset(details.delta.dx, details.delta.dy * 0.3);
-          _dragAngle = (_dragOffset.dx / size.width) * 0.4;
-        });
+      onPointerMove: (event) {
+        if (_pointerStart == null) return;
+        final delta = event.position - _pointerStart!;
+        // 5px以上動いたらドラッグ開始
+        if (!_dragStarted && delta.distance > 5) {
+          _dragStarted = true;
+          setState(() => _isDragging = true);
+        }
+        if (_dragStarted) {
+          setState(() {
+            _dragOffset = Offset(delta.dx, delta.dy * 0.3);
+            _dragAngle = (_dragOffset.dx / size.width) * 0.4;
+          });
+        }
       },
-      onHorizontalDragEnd: (details) => _onPanEnd(
-        DragEndDetails(velocity: details.velocity),
-        size,
-      ),
-      onHorizontalDragCancel: () {
-        _resetCard();
-      },
-      onTap: () {
-        if (_dragOffset.distance < 5 && !_isDragging) {
+      onPointerUp: (event) {
+        if (_dragStarted) {
+          _onPanEnd(size);
+        } else {
+          // タップ扱い → プロフィール詳細へ
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -855,6 +861,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             ),
           );
         }
+        _pointerStart = null;
+        _dragStarted = false;
+      },
+      onPointerCancel: (_) {
+        if (_dragStarted) _resetCard();
+        _pointerStart = null;
+        _dragStarted = false;
       },
       child: Transform.translate(
         offset: _dragOffset,
