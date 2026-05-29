@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/japan_locations.dart';
+import '../models/connection_category.dart';
 import '../services/user_preferences.dart';
 import '../theme/app_theme.dart';
 import '../utils/distance_util.dart';
@@ -26,6 +27,7 @@ class LocationFilterSheet extends StatefulWidget {
 
 class _LocationFilterSheetState extends State<LocationFilterSheet> {
   final _prefs = UserPreferences();
+  ConnectionCategory? _tempCategory;
   String? _tempPrefecture;
   String? _tempTrainLine;
   double? _tempMaxDistanceKm;
@@ -34,6 +36,7 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
   @override
   void initState() {
     super.initState();
+    _tempCategory = _prefs.filterCategory;
     _tempPrefecture = _prefs.filterPrefecture;
     _tempTrainLine = _prefs.filterTrainLine;
     _tempMaxDistanceKm = _prefs.filterMaxDistanceKm;
@@ -73,18 +76,19 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                   Container(height: 1, width: 16, color: AppTheme.vermillion),
                   const SizedBox(width: 12),
                   const Text(
-                    'LOCATION FILTER',
+                    'フィルター',
                     style: TextStyle(
                       color: AppTheme.black,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 3.0,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.0,
                     ),
                   ),
                   const Spacer(),
                   TextButton(
                     onPressed: () {
                       setState(() {
+                        _tempCategory = null;
                         _tempPrefecture = null;
                         _tempTrainLine = null;
                         _tempMaxDistanceKm = null;
@@ -114,6 +118,8 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildCategorySection(),
+                    const SizedBox(height: 28),
                     _buildAgeRangeSection(),
                     const SizedBox(height: 28),
                     _buildDistanceSection(),
@@ -141,6 +147,7 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    _prefs.setFilterCategory(_tempCategory);
                     _prefs.setFilterPrefecture(_tempPrefecture);
                     _prefs.setFilterTrainLine(_tempTrainLine);
                     _prefs.setFilterMaxDistanceKm(_tempMaxDistanceKm);
@@ -170,6 +177,63 @@ class _LocationFilterSheetState extends State<LocationFilterSheet> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// カテゴリフィルター UI（すべて / 各カテゴリ）
+  Widget _buildCategorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('カテゴリ',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.black)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _categoryChip(null, 'すべて', Icons.apps),
+            ...ConnectionCategory.values
+                .map((c) => _categoryChip(c, c.label, c.icon)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _categoryChip(ConnectionCategory? cat, String label, IconData icon) {
+    final selected = _tempCategory == cat;
+    return GestureDetector(
+      onTap: () => setState(() => _tempCategory = cat),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.vermillion : Colors.transparent,
+          border: Border.all(
+            color: selected ? AppTheme.vermillion : AppTheme.paleGrey,
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 14,
+                color: selected ? Colors.white : AppTheme.darkGrey),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                  color: selected ? Colors.white : AppTheme.darkGrey,
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                )),
           ],
         ),
       ),

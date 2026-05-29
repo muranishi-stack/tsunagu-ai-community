@@ -25,12 +25,10 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     with TickerProviderStateMixin {
   List<UserProfile> _allProfiles = [];
   List<UserProfile> _profiles = [];
-  Map<String, int> _aiScores = {}; // userId -> 再計算スコア
   int _currentIndex = 0;
   Offset _dragOffset = Offset.zero;
   double _dragAngle = 0;
   bool _isDragging = false;
-  ConnectionCategory? _selectedCategory; // null = ALL
   bool _loading = true;
   String? _loadError;
   Set<String> _swipedUids = {};
@@ -115,8 +113,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             !_swipedUids.contains(p.id) && !_blockedUids.contains(p.id))
         .toList();
 
-    // 1. カテゴリフィルター
-    final category = _selectedCategory;
+    // 1. カテゴリフィルター（左上フィルターに統合）
+    final category = _prefs.filterCategory;
     if (category != null) {
       filtered = filtered
           .where((p) =>
@@ -174,16 +172,10 @@ class _DiscoverScreenState extends State<DiscoverScreen>
 
     setState(() {
       _profiles = ranked.map((r) => r.profile).toList();
-      _aiScores = {for (final r in ranked) r.profile.id: r.score};
       _currentIndex = 0;
       _dragOffset = Offset.zero;
       _dragAngle = 0;
     });
-  }
-
-  void _selectCategory(ConnectionCategory? category) {
-    _selectedCategory = category;
-    _applyFilters();
   }
 
   Future<void> _openLocationFilter() async {
@@ -589,14 +581,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // カテゴリタブのみ独立した行で全幅をスクロール
-            // BOOSTボタンはAppBarのactionsに移動して1行レイアウトを実現
-            _buildCategoryTabs(),
-            if (_prefs.hasActiveLocationFilter) _buildFilterBanner(),
+            // カテゴリタブは左上フィルターに統合（画像を大きく表示するため撤去）
+            if (_prefs.hasActiveLocationFilter || _prefs.filterCategory != null)
+              _buildFilterBanner(),
             Expanded(
               child: Padding(
-                // 画像を大きく見せるため余白を縮小
-                padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                // 画像を大きく見せるため余白を最小化
+                padding: const EdgeInsets.fromLTRB(6, 2, 6, 6),
                 child: _loading
                     ? const Center(
                         child: CircularProgressIndicator(
@@ -647,15 +638,19 @@ class _DiscoverScreenState extends State<DiscoverScreen>
 
   Widget _buildFilterBanner() {
     final parts = <String>[];
+    if (_prefs.filterCategory != null) parts.add(_prefs.filterCategory!.label);
     if (_prefs.filterPrefecture != null) parts.add(_prefs.filterPrefecture!);
     if (_prefs.filterTrainLine != null) parts.add(_prefs.filterTrainLine!);
+    if (_prefs.filterMaxDistanceKm != null) {
+      parts.add('${_prefs.filterMaxDistanceKm!.toInt()}km以内');
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       color: AppTheme.vermillion.withValues(alpha: 0.06),
       child: Row(
         children: [
-          const Icon(Icons.location_on_outlined,
+          const Icon(Icons.tune,
               size: 12, color: AppTheme.vermillion),
           const SizedBox(width: 6),
           Expanded(
@@ -687,7 +682,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            _selectedCategory?.icon ?? Icons.search,
+            _prefs.filterCategory?.icon ?? Icons.search,
             size: 48,
             color: AppTheme.textTertiary(context),
           ),
@@ -700,17 +695,20 @@ class _DiscoverScreenState extends State<DiscoverScreen>
               letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => _selectCategory(null),
-            child: const Text(
-              'すべて表示',
-              style: TextStyle(
-                color: AppTheme.vermillion,
-                letterSpacing: 1.5,
+          if (_prefs.filterCategory != null ||
+              _prefs.hasActiveLocationFilter) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => _prefs.clearFilters(),
+              child: const Text(
+                'フィルターを解除',
+                style: TextStyle(
+                  color: AppTheme.vermillion,
+                  letterSpacing: 1.5,
+                ),
               ),
             ),
-          ),
+          ],
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: _loadProfilesFromFirestore,
@@ -756,73 +754,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     );
   }
 
-  Widget _buildCategoryTabs() {
-    final categories = [null, ...ConnectionCategory.values];
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(
-          bottom: BorderSide(
-              color: Theme.of(context).dividerColor, width: 0.5),
-        ),
-      ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final cat = categories[index];
-          final isSelected = _selectedCategory == cat;
-          final label = cat?.label ?? 'すべて';
-          final icon = cat?.icon ?? Icons.apps;
-
-          return GestureDetector(
-            onTap: () => _selectCategory(cat),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected ? AppTheme.vermillion : Colors.transparent,
-                border: Border.all(
-                  color: isSelected
-                      ? AppTheme.vermillion
-                      : AppTheme.border(context),
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: 14,
-                    color: isSelected
-                        ? Colors.white
-                        : AppTheme.textSecondary(context),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : AppTheme.textSecondary(context),
-                      fontSize: 12,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   PreferredSizeWidget _buildAppBar() {
     final hasFilter = _prefs.hasActiveLocationFilter;
@@ -1033,40 +964,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                     ),
                   ),
                 ),
-                // AI Match badge (top right) - 再計算スコアを使用
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 0.5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome,
-                            color: Colors.white, size: 12),
-                        const SizedBox(width: 6),
-                        Text(
-                          'AI ${_aiScores[profile.id] ?? profile.aiMatchScore}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // 距離は名前横（A案）に表示するため、右上バッジは削除
+                // AIスコアバッジは「さがす」では非表示（レコメンド/AIスコアに集約）
+                // 距離は名前横（A案）に表示
                 // Profile info (bottom) — アクションボタン分のスペースを確保
                 Positioned(
                   left: 24,
@@ -1287,6 +1186,15 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             onTap: () => _handleActionButton(false),
             label: 'スキップ',
           ),
+          // いいね
+          _buildActionButton(
+            icon: Icons.favorite,
+            iconColor: AppTheme.vermillion,
+            size: 62,
+            iconSize: 28,
+            onTap: () => _handleActionButton(true),
+            label: 'いいね',
+          ),
           // つなぐ（スーパーいいね）: 月5回制限（残数バッジ表示）
           _buildActionButton(
             icon: Icons.link,
@@ -1299,15 +1207,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                 ? AppTheme.vermillion
                 : Colors.grey,
             label: 'つなぐ',
-          ),
-          // いいね
-          _buildActionButton(
-            icon: Icons.favorite,
-            iconColor: AppTheme.vermillion,
-            size: 62,
-            iconSize: 28,
-            onTap: () => _handleActionButton(true),
-            label: 'いいね',
           ),
         ],
       ),

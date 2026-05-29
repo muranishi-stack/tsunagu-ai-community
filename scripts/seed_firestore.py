@@ -124,6 +124,15 @@ def clear_collection(collection_name, batch_size=100):
 # ============================================================
 # Seed users
 # ============================================================
+def _gen_photos(user_id):
+    """各ユーザーに 2〜4 枚の画像を生成（1枚目=顔写真, 以降=ライフスタイル）。"""
+    n = random.randint(2, 4)
+    photos = [f"https://i.pravatar.cc/600?u={user_id}"]
+    for k in range(1, n):
+        photos.append(f"https://picsum.photos/seed/{user_id}-{k}/600/800")
+    return photos
+
+
 def seed_users(count):
     print(f"\n👤 Seeding {count} users...")
     batch = db.batch()
@@ -158,6 +167,8 @@ def seed_users(count):
             "report_count": random.randint(0, 3) if random.random() < 0.1 else 0,
             "active_plan": random.choice(PLANS),
             "avatar_url": f"https://i.pravatar.cc/300?u={user_id}",
+            # 複数画像（1枚目=顔写真, 2枚目以降=ライフスタイル）。2〜4枚をランダム付与。
+            "photos": _gen_photos(user_id),
             "bio": _gen_bio(pick_category()),
             "interests": _gen_interests(),
             "is_seed_data": True,  # Marker for cleanup

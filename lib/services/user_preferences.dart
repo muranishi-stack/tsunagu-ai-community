@@ -31,6 +31,7 @@ class UserPreferences extends ChangeNotifier {
   String? trainLine = 'JR山手線';
 
   // フィルター（検索条件）
+  ConnectionCategory? filterCategory; // null = すべてのカテゴリ
   String? filterPrefecture; // null = すべて
   String? filterTrainLine;  // null = すべて
 
@@ -96,6 +97,11 @@ class UserPreferences extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setFilterCategory(ConnectionCategory? cat) {
+    filterCategory = cat;
+    notifyListeners();
+  }
+
   void setFilterPrefecture(String? pref) {
     filterPrefecture = pref;
     if (pref == null) {
@@ -110,6 +116,7 @@ class UserPreferences extends ChangeNotifier {
   }
 
   void clearFilters() {
+    filterCategory = null;
     filterPrefecture = null;
     filterTrainLine = null;
     filterMaxDistanceKm = null;
