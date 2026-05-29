@@ -4,6 +4,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/app_version.dart';
 import '../../services/line_auth_service.dart';
 import '../../services/user_service.dart';
 import 'signup_screen.dart';
@@ -409,6 +410,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppVersion.fullLabel,
+                      style: const TextStyle(
+                        color: Colors.black38,
+                        fontSize: 10,
+                        letterSpacing: 1.5,
+                      ),
                     ),
                   ],
                 ),

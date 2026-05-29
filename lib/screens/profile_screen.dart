@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/app_version.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tsunagu_logo.dart';
 import '../widgets/category_edit_sheet.dart';
@@ -279,10 +280,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Center(
+              Center(
                 child: Text(
-                  'TSUNAGU · v1.0.0',
-                  style: TextStyle(
+                  'TSUNAGU · ${AppVersion.fullLabel}',
+                  style: const TextStyle(
                     color: AppTheme.lightGrey,
                     fontSize: 10,
                     letterSpacing: 2.0,

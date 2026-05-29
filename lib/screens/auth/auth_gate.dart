@@ -102,6 +102,14 @@ class AuthGate extends StatelessWidget {
             final myAge = (data?['age'] as num?)?.toInt() ?? 30;
             UserPreferences().initAgeFilterFromMyAge(myAge);
 
+            // Firestore の自分の lat/lng を UserPreferences に同期
+            // (GPS 自動更新が完了する前でも距離計算が可能になる)
+            final firestoreLat = (data?['latitude'] as num?)?.toDouble();
+            final firestoreLng = (data?['longitude'] as num?)?.toDouble();
+            if (firestoreLat != null && firestoreLng != null) {
+              UserPreferences().setMyLocation(firestoreLat, firestoreLng);
+            }
+
             // 起動時GPS自動更新 (Choice B: 毎回起動時) — 非同期・サイレント
             _attemptStartupLocationUpdate();
 
